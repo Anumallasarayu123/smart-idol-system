@@ -29,7 +29,7 @@ unsigned long lastPlayTime = 0;
 // =====================================================
 void triggerAudioPlayback() {
   Serial.println("\n⚡ [MOTION DETECTED] Human wave sensed!");
-  Serial.printf("🔊 Streaming from: %s\n", AUDIO_URL);
+  Serial.printf("🔊 Connecting to: %s\n", AUDIO_URL);
 
   digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker amp
   digitalWrite(LED_PIN, HIGH); // Turn Blue LED ON
@@ -53,7 +53,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(SD_PIN, OUTPUT);
 
-  digitalWrite(SD_PIN, LOW);  // Keep amp muted initially
+  digitalWrite(SD_PIN, HIGH); // Keep amp unmuted permanently
   digitalWrite(LED_PIN, LOW); // LED Off
 
   Serial.println("📶 Connecting to Wi-Fi...");
@@ -73,40 +73,37 @@ void setup() {
 
   // Initialize ESP32-AudioI2S Pins
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  audio.setVolume(20); // 0 to 21 volume scale
+  audio.setVolume(21); // Maximum volume 21
 
   // Register Audio Log Callback for Detailed Diagnostics
   Audio::audio_info_callback = [](Audio::msg_t m) {
     if (m.msg || m.s) {
-      Serial.printf("🔊 [AUDIO LOG] %s %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
+      Serial.printf("🔊 [AUDIO DIAGNOSTIC] %s: %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
     }
   };
 
-  Serial.println("⏳ Warming up PIR sensor for 10 seconds...");
-  delay(10000);
-
-  Serial.println("✅ Smart Idol Hardware Ready! Wave your hand...");
+  Serial.println("🔊 [BOOT TEST] Triggering immediate audio playback test on boot...");
+  triggerAudioPlayback();
 }
 
 // =====================================================
-// Main Loop (In v3.4.7, AudioTask runs automatically in background)
+// Main Loop
 // =====================================================
 void loop() {
   // Check if audio finished playing
   if (isAudioPlaying && !audio.isRunning()) {
     Serial.println("✅ Audio playback finished!");
-    digitalWrite(SD_PIN, LOW);  // Mute MAX98357A speaker amp
     digitalWrite(LED_PIN, LOW); // Turn Blue LED OFF
     isAudioPlaying = false;
   }
 
   // Detect PIR Motion Trigger
   if (!isAudioPlaying && digitalRead(PIR_PIN) == HIGH) {
-    if (millis() - lastPlayTime > 15000) { // 15s cooldown
+    if (millis() - lastPlayTime > 10000) { // 10s cooldown
       triggerAudioPlayback();
       lastPlayTime = millis();
     }
   }
 
-  delay(50); // Small loop delay
+  delay(20);
 }
