@@ -410,6 +410,19 @@ app.get('/audio/download', async (req, res) => {
 });
 
 // 3. BULLETPROOF NATIVE STREAMING ENDPOINTS FOR ESP32 HARDWARE DECODERS
+// Dedicated chunked webstream route for ESP32 hardware decoders (No Content-Length header to force ST_WEBSTREAM mode in ESP32-AudioI2S)
+app.get('/audio/latest.mp3', (req, res) => {
+  if (fs.existsSync(LATEST_MP3_PATH)) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const stream = fs.createReadStream(LATEST_MP3_PATH);
+    stream.pipe(res);
+  } else {
+    res.status(404).send('Audio file missing');
+  }
+});
+
 app.use('/audio', express.static(STORAGE_DIR, {
   acceptRanges: true,
   cacheControl: false,

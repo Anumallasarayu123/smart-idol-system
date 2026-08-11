@@ -169,19 +169,17 @@ app.post('/connect-wifi', (req, res) => {
 });
 
 // 4. GET /audio/latest.mp3 (Bulletproof Direct ESP32 MP3 Stream Endpoint)
+// Dedicated chunked webstream route for ESP32 hardware decoders (No Content-Length header to force ST_WEBSTREAM mode in ESP32-AudioI2S)
 app.get('/audio/latest.mp3', (req, res) => {
-  console.log('🔊 [AUDIO STREAM] ESP32 requested /audio/latest.mp3');
-  res.header('Access-Control-Allow-Origin', '*');
-  res.header('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
-  res.header('Content-Type', 'audio/mpeg');
-  res.header('Connection', 'close');
-
   if (fs.existsSync(LATEST_MP3_PATH)) {
-    const stat = fs.statSync(LATEST_MP3_PATH);
-    res.header('Content-Length', stat.size);
-    return res.sendFile('latest.mp3', { root: STORAGE_DIR });
+    res.setHeader('Access-Control-Allow-Origin', '*');
+    res.setHeader('Content-Type', 'audio/mpeg');
+    res.setHeader('Cache-Control', 'no-store, no-cache, must-revalidate, max-age=0');
+    const stream = fs.createReadStream(LATEST_MP3_PATH);
+    stream.pipe(res);
+  } else {
+    res.status(404).send('Audio file missing');
   }
-  res.status(404).json({ status: 'error', message: 'Panchangam audio not ready' });
 });
 
 // 5. POST /motion & GET /motion (Receive Motion Event from ESP32)
