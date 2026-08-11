@@ -22,7 +22,8 @@ export default function WifiProvisioning({ idolState, audioUnlocked, onUnlockAud
     setIsScanning(true);
     setConnectionStatus(null);
 
-    fetch('http://localhost:3001/scan-wifi')
+    const hostname = window.location.hostname || 'localhost';
+    fetch(`http://${hostname}:3001/scan-wifi`)
       .then(res => res.json())
       .then(data => {
         if (data && data.networks && Array.isArray(data.networks)) {
@@ -62,7 +63,8 @@ export default function WifiProvisioning({ idolState, audioUnlocked, onUnlockAud
     setIsConnecting(true);
     setConnectionStatus(null);
 
-    fetch('http://localhost:3001/connect-wifi', {
+    const hostname = window.location.hostname || 'localhost';
+    fetch(`http://${hostname}:3001/connect-wifi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ssid: selectedSsid.trim(), password: wifiPassword.trim() })

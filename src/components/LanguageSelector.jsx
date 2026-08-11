@@ -1,39 +1,24 @@
 import React, { useState } from 'react';
 import { 
-  ShieldCheck, Volume2, Lock, CheckCircle, Search, Filter, Play, 
-  Sparkles, AlertCircle, RefreshCw, MapPin 
+  Globe, Check, Volume2, ShieldCheck, Lock, Play, Sparkles, MapPin, Loader2, RefreshCw, Cpu, Layers, Disc, Music
 } from 'lucide-react';
 import { LANGUAGES, CITIES, generateAudioScript, getDailyPanchangam } from '../utils/panchangamEngine';
 import { ttsEngine } from '../utils/ttsEngine';
 
-export default function LanguageSelector({ idolState, onConfirmLanguage, onConfirmCity }) {
+export default function LanguageSelector({ idolState, onConfirmLanguage, onConfirmCity, isSyncing }) {
   const [selectedLang, setSelectedLang] = useState(idolState.activeLanguage);
-  const [selectedCity, setSelectedCity] = useState(idolState.activeCity || 'hyderabad');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [selectedRegion, setSelectedRegion] = useState('ALL');
+  const [selectedCity, setSelectedCity] = useState(idolState.activeCity);
   const [isPlayingTest, setIsPlayingTest] = useState(false);
-  const [showConfirmModal, setShowConfirmModal] = useState(false);
-  const [isSyncing, setIsSyncing] = useState(false);
+  const [searchFilter, setSearchFilter] = useState('');
+  const [activeTabRegion, setActiveTabRegion] = useState('ALL');
 
   const panchang = getDailyPanchangam(selectedCity);
-
-  // Region Filters
-  const regions = ['ALL', 'South', 'North', 'East', 'West', 'North-East', 'Classical', 'Universal'];
-
-  // Filtered Languages
-  const filteredLanguages = LANGUAGES.filter(lang => {
-    const matchesSearch = lang.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          lang.script.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesRegion = selectedRegion === 'ALL' || lang.region === selectedRegion;
-    return matchesSearch && matchesRegion;
-  });
-
   const activeLangObj = LANGUAGES.find(l => l.id === selectedLang) || LANGUAGES[0];
-  const confirmedLangObj = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
   const activeCityObj = CITIES.find(c => c.id === selectedCity) || CITIES[0];
 
-  // Play Test Voice Preview
-  const handlePlayTestVoice = (langObj) => {
+  const handlePlayTestVoice = async (langObj) => {
+    await onConfirmLanguage(langObj.id);
+    await onConfirmCity(selectedCity);
     const scriptText = generateAudioScript(langObj.id, panchang);
     setIsPlayingTest(true);
     ttsEngine.speak(scriptText, langObj.code, {
@@ -42,284 +27,367 @@ export default function LanguageSelector({ idolState, onConfirmLanguage, onConfi
     });
   };
 
-  const handleStopTestVoice = () => {
-    ttsEngine.stop();
-    setIsPlayingTest(false);
-  };
+  const filteredLanguages = LANGUAGES.filter(l => {
+    const matchesSearch = 
+      l.name.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      l.nativeName.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      l.region.toLowerCase().includes(searchFilter.toLowerCase()) ||
+      l.script.toLowerCase().includes(searchFilter.toLowerCase());
 
-  // Confirm Language & Location to ESP32
-  const handleExecuteConfirmation = () => {
-    setIsSyncing(true);
-    setTimeout(() => {
-      onConfirmLanguage(selectedLang);
-      onConfirmCity(selectedCity);
-      setIsSyncing(false);
-      setShowConfirmModal(false);
-    }, 600);
-  };
+    if (activeTabRegion === 'ALL') return matchesSearch;
+    if (activeTabRegion === 'SOUTH') return matchesSearch && (l.id === 'telugu' || l.id === 'tamil' || l.id === 'kannada' || l.id === 'malayalam');
+    if (activeTabRegion === 'NORTH') return matchesSearch && (l.id === 'hindi' || l.id === 'punjabi' || l.id === 'sanskrit');
+    if (activeTabRegion === 'WEST_EAST') return matchesSearch && (l.id === 'marathi' || l.id === 'gujarati' || l.id === 'bengali' || l.id === 'oriya' || l.id === 'assamese');
+    return matchesSearch;
+  });
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '24px' }}>
       
-      {/* Header Banner */}
-      <div className="glass-card" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.2), rgba(17, 24, 39, 0.9))', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
+      {/* 1. REALISTIC HERO HEADER */}
+      <div className="glass-card" style={{ padding: '28px', background: 'linear-gradient(135deg, rgba(234, 88, 12, 0.18), rgba(15, 23, 42, 0.9))', border: '1px solid rgba(245, 158, 11, 0.35)' }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div>
-            <div className="badge-gold" style={{ marginBottom: '8px' }}>
-              <Lock size={14} /> ADMINISTRATOR CONTROL CENTER
-            </div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
-              Idol Location & Panchangam <span className="sacred-glow-text">Language Controller</span>
-            </h2>
-            <p style={{ color: '#9ca3af', marginTop: '6px', fontSize: '0.95rem' }}>
-              Configure the exact <strong>City Location</strong> and <strong>Audio Announcement Language</strong> for the Smart Idol. The ESP32 device will play location-accurate Panchangam upon motion detection.
-            </p>
-          </div>
-
-          {/* Current Confirmed Language & Location Box */}
-          <div style={{ 
-            padding: '16px 20px', 
-            borderRadius: '12px', 
-            background: 'rgba(9, 13, 22, 0.8)', 
-            border: '1px solid rgba(245, 158, 11, 0.4)',
-            textAlign: 'right'
-          }}>
-            <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase' }}>CONFIRMED ON ESP32</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#34d399', display: 'flex', alignItems: 'center', gap: '6px', justifyContent: 'flex-end', marginTop: '4px' }}>
-              <CheckCircle size={16} color="#34d399" />
-              {activeCityObj.name} • {confirmedLangObj.flag} {confirmedLangObj.name}
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* Location Selector Card */}
-      <div className="glass-card" style={{ padding: '20px 24px', background: 'rgba(16, 185, 129, 0.05)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-            <div style={{ padding: '10px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.15)', color: '#34d399' }}>
-              <MapPin size={22} />
+          <div style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+            <div style={{ background: 'linear-gradient(135deg, #ea580c, #f59e0b)', padding: '14px', borderRadius: '16px', color: '#ffffff', boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)' }}>
+              <Globe size={32} />
             </div>
             <div>
-              <h3 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
-                Select Smart Idol Location / City
-              </h3>
-              <p style={{ fontSize: '0.82rem', color: '#9ca3af', margin: '2px 0 0 0' }}>
-                Coordinates & Sunrise/Sunset timings calibrate automatically based on your chosen city.
+              <div className="badge-gold" style={{ marginBottom: '6px' }}>
+                <ShieldCheck size={12} /> ALL-INDIA MULTI-LANGUAGE HARDWARE CONTROL
+              </div>
+              <h2 style={{ fontSize: '1.8rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>
+                Voice Language & City Location Calibration
+              </h2>
+              <p style={{ color: '#9ca3af', margin: '4px 0 0 0', fontSize: '0.94rem' }}>
+                Select spoken native language and temple city location. Audio is dynamically synthesized in 44.1kHz studio WAV & stored on server disk for ESP32 speaker.
               </p>
             </div>
           </div>
 
-          {/* City Dropdown */}
-          <select 
-            value={selectedCity}
-            onChange={(e) => setSelectedCity(e.target.value)}
-            style={{
-              background: 'rgba(9, 13, 22, 0.95)',
-              border: '1px solid rgba(16, 185, 129, 0.5)',
-              color: '#34d399',
-              padding: '10px 20px',
-              borderRadius: '10px',
-              fontSize: '0.95rem',
-              fontWeight: 700,
-              outline: 'none',
-              cursor: 'pointer'
-            }}
-          >
-            {CITIES.map((c) => (
-              <option key={c.id} value={c.id}>
-                📍 {c.name}, {c.state} ({c.lat}° N, {c.lon}° E)
-              </option>
-            ))}
-          </select>
+          {/* Current Active Badges */}
+          <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
+            <div className="badge-gold" style={{ padding: '10px 16px', fontSize: '0.85rem' }}>
+              <Volume2 size={16} /> VOICE: {activeLangObj.name.toUpperCase()} ({activeLangObj.nativeName})
+            </div>
+            <div className="badge-emerald" style={{ padding: '10px 16px', fontSize: '0.85rem' }}>
+              <MapPin size={16} /> CITY: {activeCityObj.name.toUpperCase()} ({activeCityObj.state})
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Filter & Search Bar */}
-      <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap', justifyContent: 'space-between' }}>
+      {/* 2. REALISTIC CITY LOCATION SELECTOR PANEL */}
+      <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid #3b82f6' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
+          <div>
+            <h3 style={{ fontSize: '1.15rem', fontWeight: 700, margin: 0, color: '#ffffff', display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <MapPin size={20} color="#60a5fa" /> Temple City Location Calibration (28 All-India Cities)
+            </h3>
+            <p style={{ fontSize: '0.88rem', color: '#9ca3af', margin: '4px 0 0 0' }}>
+              Calculates precise Drik Panchang ephemeris (Sunrise, Sunset, Rahu Kalam, Tithi) for exact latitude & longitude coordinates.
+            </p>
+          </div>
+
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <select
+              value={selectedCity}
+              onChange={async (e) => {
+                const newCity = e.target.value;
+                setSelectedCity(newCity);
+                await onConfirmCity(newCity);
+              }}
+              style={{
+                background: '#090d16',
+                border: '1px solid rgba(59, 130, 246, 0.5)',
+                padding: '12px 18px',
+                borderRadius: '10px',
+                color: '#ffffff',
+                fontSize: '0.98rem',
+                fontWeight: 600,
+                cursor: 'pointer',
+                minWidth: '260px'
+              }}
+            >
+              <optgroup label="South India">
+                {CITIES.filter(c => ['Telangana', 'Andhra Pradesh', 'Karnataka', 'Tamil Nadu', 'Kerala'].includes(c.state)).map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name} ({c.state})</option>
+                ))}
+              </optgroup>
+              <optgroup label="North India">
+                {CITIES.filter(c => ['Delhi NCR', 'Uttar Pradesh', 'Rajasthan', 'Punjab / Haryana', 'Jammu & Kashmir'].includes(c.state)).map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name} ({c.state})</option>
+                ))}
+              </optgroup>
+              <optgroup label="West India">
+                {CITIES.filter(c => ['Maharashtra', 'Gujarat', 'Goa'].includes(c.state)).map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name} ({c.state})</option>
+                ))}
+              </optgroup>
+              <optgroup label="East & North-East India">
+                {CITIES.filter(c => ['West Bengal', 'Odisha', 'Bihar', 'Assam'].includes(c.state)).map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name} ({c.state})</option>
+                ))}
+              </optgroup>
+              <optgroup label="Central India">
+                {CITIES.filter(c => ['Madhya Pradesh'].includes(c.state)).map(c => (
+                  <option key={c.id} value={c.id}>📍 {c.name} ({c.state})</option>
+                ))}
+              </optgroup>
+            </select>
+
+            <button
+              onClick={async () => {
+                await onConfirmCity(selectedCity);
+              }}
+              className="btn-primary"
+              style={{ background: 'linear-gradient(135deg, #2563eb, #1d4ed8)', border: 'none', padding: '12px 20px' }}
+            >
+              <Check size={16} /> Confirm Location
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* 3. SPOKEN LANGUAGE CARDS SECTION */}
+      <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
         
-        {/* Search Input */}
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px', background: 'rgba(255, 255, 255, 0.05)', border: '1px solid rgba(255, 255, 255, 0.1)', padding: '8px 14px', borderRadius: '10px', minWidth: '260px' }}>
-          <Search size={18} color="#9ca3af" />
+        {/* Filter Tabs & Search Bar */}
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '14px' }}>
+          
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <button
+              onClick={() => setActiveTabRegion('ALL')}
+              style={{
+                background: activeTabRegion === 'ALL' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                color: activeTabRegion === 'ALL' ? '#000000' : '#d1d5db',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
+              ALL LANGUAGES (13)
+            </button>
+
+            <button
+              onClick={() => setActiveTabRegion('SOUTH')}
+              style={{
+                background: activeTabRegion === 'SOUTH' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                color: activeTabRegion === 'SOUTH' ? '#000000' : '#d1d5db',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
+              SOUTH INDIA
+            </button>
+
+            <button
+              onClick={() => setActiveTabRegion('NORTH')}
+              style={{
+                background: activeTabRegion === 'NORTH' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                color: activeTabRegion === 'NORTH' ? '#000000' : '#d1d5db',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
+              NORTH INDIA
+            </button>
+
+            <button
+              onClick={() => setActiveTabRegion('WEST_EAST')}
+              style={{
+                background: activeTabRegion === 'WEST_EAST' ? '#f59e0b' : 'rgba(255, 255, 255, 0.05)',
+                color: activeTabRegion === 'WEST_EAST' ? '#000000' : '#d1d5db',
+                border: 'none',
+                padding: '8px 16px',
+                borderRadius: '8px',
+                fontWeight: 700,
+                fontSize: '0.82rem',
+                cursor: 'pointer'
+              }}
+            >
+              WEST & EAST INDIA
+            </button>
+          </div>
+
           <input 
-            type="text" 
-            placeholder="Search Indian languages..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            style={{ background: 'transparent', border: 'none', color: '#ffffff', outline: 'none', width: '100%', fontSize: '0.9rem' }}
+            type="text"
+            placeholder="🔍 Search language or native script..."
+            value={searchFilter}
+            onChange={(e) => setSearchFilter(e.target.value)}
+            style={{
+              background: '#090d16',
+              border: '1px solid rgba(255, 255, 255, 0.15)',
+              padding: '10px 18px',
+              borderRadius: '10px',
+              color: '#fff',
+              fontSize: '0.88rem',
+              width: '260px'
+            }}
           />
         </div>
 
-        {/* Region Filter Buttons */}
-        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px' }}>
-          {regions.map((reg) => (
-            <button
-              key={reg}
-              onClick={() => setSelectedRegion(reg)}
-              style={{
-                padding: '6px 12px',
-                borderRadius: '8px',
-                border: selectedRegion === reg ? '1px solid #f59e0b' : '1px solid rgba(255, 255, 255, 0.1)',
-                background: selectedRegion === reg ? 'rgba(245, 158, 11, 0.2)' : 'rgba(255, 255, 255, 0.03)',
-                color: selectedRegion === reg ? '#fbbf24' : '#9ca3af',
-                fontSize: '0.8rem',
-                fontWeight: 600,
-                cursor: 'pointer',
-                whiteSpace: 'nowrap'
-              }}
-            >
-              {reg}
-            </button>
-          ))}
-        </div>
-      </div>
+        {/* 13 Language Cards Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: '18px' }}>
+          {filteredLanguages.map((lang) => {
+            const isSelected = selectedLang === lang.id;
+            const isConfirmed = idolState.activeLanguage === lang.id;
 
-      {/* Languages Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(250px, 1fr))', gap: '16px' }}>
-        {filteredLanguages.map((lang) => {
-          const isSelected = selectedLang === lang.id;
-          const isConfirmed = idolState.activeLanguage === lang.id;
-
-          return (
-            <div
-              key={lang.id}
-              onClick={() => setSelectedLang(lang.id)}
-              className="glass-card glass-card-interactive"
-              style={{
-                padding: '18px',
-                border: isSelected 
-                  ? '2px solid #f59e0b' 
-                  : isConfirmed 
-                  ? '1px solid rgba(16, 185, 129, 0.5)' 
-                  : '1px solid rgba(255, 255, 255, 0.08)',
-                background: isSelected 
-                  ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(17, 24, 39, 0.9))' 
-                  : 'rgba(17, 24, 39, 0.6)',
-                position: 'relative'
-              }}
-            >
-              {/* Confirmed Lock Ribbon */}
-              {isConfirmed && (
-                <div style={{ position: 'absolute', top: '12px', right: '12px' }}>
-                  <span className="badge-emerald" style={{ fontSize: '0.65rem' }}>
-                    <Lock size={10} /> CONFIRMED
-                  </span>
-                </div>
-              )}
-
-              <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '10px' }}>
-                <span style={{ fontSize: '2rem' }}>{lang.flag}</span>
-                <div>
-                  <h4 style={{ fontSize: '1.1rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>{lang.name}</h4>
-                  <div style={{ fontSize: '0.85rem', color: '#fbbf24', fontWeight: 600 }}>{lang.script}</div>
-                </div>
-              </div>
-
-              <div style={{ fontSize: '0.75rem', color: '#9ca3af', display: 'flex', justifyContent: 'space-between', marginTop: '12px', borderTop: '1px solid rgba(255, 255, 255, 0.05)', paddingTop: '8px' }}>
-                <span>Region: {lang.region}</span>
-                <span>Code: {lang.code}</span>
-              </div>
-
-              {/* Action Toolbar on Card */}
-              <div style={{ marginTop: '14px', display: 'flex', gap: '8px' }}>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handlePlayTestVoice(lang);
-                  }}
-                  className="btn-secondary"
-                  style={{ flex: 1, padding: '6px 10px', fontSize: '0.75rem', justifyContent: 'center' }}
-                >
-                  <Play size={12} color="#fbbf24" /> Sample Voice
-                </button>
-              </div>
-            </div>
-          );
-        })}
-      </div>
-
-      {/* Selected Language Action Bar */}
-      <div className="glass-card" style={{ padding: '24px', background: 'linear-gradient(135deg, rgba(17, 24, 39, 0.95), rgba(9, 13, 22, 0.95))', border: '1px solid rgba(245, 158, 11, 0.4)' }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '20px' }}>
-          <div>
-            <div style={{ fontSize: '0.85rem', color: '#9ca3af', textTransform: 'uppercase' }}>SELECTED ADMIN CHOICE</div>
-            <h3 style={{ fontSize: '1.5rem', fontWeight: 700, color: '#ffffff', margin: '4px 0 0 0', display: 'flex', alignItems: 'center', gap: '10px' }}>
-              <span>📍 {activeCityObj.name}</span>
-              <span>•</span>
-              <span>{activeLangObj.flag} {activeLangObj.name}</span>
-              <span style={{ fontSize: '1rem', color: '#fbbf24', fontWeight: 500 }}>({activeLangObj.script})</span>
-            </h3>
-            <p style={{ fontSize: '0.85rem', color: '#9ca3af', margin: '4px 0 0 0' }}>
-              Sample announcement script: "{generateAudioScript(activeLangObj.id, panchang).substring(0, 75)}..."
-            </p>
-          </div>
-
-          <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
-            {/* Audio Test Button */}
-            {isPlayingTest ? (
-              <button className="btn-secondary" onClick={handleStopTestVoice} style={{ color: '#ef4444', borderColor: 'rgba(239, 68, 68, 0.4)' }}>
-                <Volume2 size={16} /> Stop Audio Preview
-              </button>
-            ) : (
-              <button className="btn-secondary" onClick={() => handlePlayTestVoice(activeLangObj)}>
-                <Volume2 size={16} color="#fbbf24" /> Listen Audio Preview
-              </button>
-            )}
-
-            {/* Confirm & Publish to ESP32 Button */}
-            <button 
-              className="btn-primary" 
-              onClick={() => setShowConfirmModal(true)}
-              style={{ padding: '12px 24px', fontSize: '0.95rem' }}
-            >
-              <ShieldCheck size={18} />
-              Confirm {activeCityObj.name} & {activeLangObj.name} to ESP32
-            </button>
-          </div>
-        </div>
-      </div>
-
-      {/* Confirmation Modal */}
-      {showConfirmModal && (
-        <div style={{ 
-          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, 
-          background: 'rgba(0, 0, 0, 0.8)', backdropFilter: 'blur(8px)', 
-          display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 100, padding: '20px' 
-        }}>
-          <div className="glass-card" style={{ maxWidth: '500px', width: '100%', padding: '28px', border: '1px solid rgba(245, 158, 11, 0.5)' }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '12px', marginBottom: '16px' }}>
-              <div style={{ padding: '10px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.2)', color: '#fbbf24' }}>
-                <Lock size={24} />
-              </div>
-              <h3 style={{ fontSize: '1.3rem', fontWeight: 700, margin: 0 }}>Confirm Idol Location & Language</h3>
-            </div>
-
-            <p style={{ color: '#d1d5db', fontSize: '0.95rem', lineHeight: '1.5' }}>
-              You are locking the Smart Idol settings to <strong>📍 {activeCityObj.name}, {activeCityObj.state}</strong> in <strong>{activeLangObj.name} ({activeLangObj.script})</strong>.
-            </p>
-            <p style={{ color: '#9ca3af', fontSize: '0.85rem', marginTop: '10px', background: 'rgba(255, 255, 255, 0.04)', padding: '10px', borderRadius: '8px' }}>
-              ⚠️ The ESP32 device will sync this location & language over Wi-Fi and announce local Panchangam timings upon motion detection.
-            </p>
-
-            <div style={{ display: 'flex', justifyContent: 'flex-end', gap: '12px', marginTop: '24px' }}>
-              <button className="btn-secondary" onClick={() => setShowConfirmModal(false)}>
-                Cancel
-              </button>
-              <button className="btn-primary" onClick={handleExecuteConfirmation} disabled={isSyncing}>
-                {isSyncing ? (
-                  <>
-                    <RefreshCw size={16} className="pulse-motion" /> Syncing with ESP32...
-                  </>
-                ) : (
-                  <>
-                    <CheckCircle size={16} /> Confirm & Publish Now
-                  </>
+            return (
+              <div
+                key={lang.id}
+                onClick={async () => {
+                  setSelectedLang(lang.id);
+                  await onConfirmLanguage(lang.id);
+                }}
+                className="glass-card glass-card-interactive"
+                style={{
+                  padding: '20px',
+                  border: isConfirmed 
+                    ? '2px solid #10b981' 
+                    : isSelected 
+                    ? '2px solid #f59e0b' 
+                    : '1px solid rgba(255, 255, 255, 0.08)',
+                  background: isConfirmed
+                    ? 'linear-gradient(135deg, rgba(16, 185, 129, 0.15), rgba(17, 24, 39, 0.95))'
+                    : isSelected 
+                    ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(17, 24, 39, 0.95))' 
+                    : 'rgba(17, 24, 39, 0.7)',
+                  position: 'relative',
+                  cursor: 'pointer',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  justify: 'space-between'
+                }}
+              >
+                {/* Active Lock Badge */}
+                {isConfirmed && (
+                  <div style={{ position: 'absolute', top: '14px', right: '14px' }}>
+                    <span className="badge-emerald" style={{ fontSize: '0.68rem', fontWeight: 700 }}>
+                      <Lock size={10} /> ACTIVE DEVICE VOICE
+                    </span>
+                  </div>
                 )}
-              </button>
-            </div>
+
+                <div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginBottom: '12px' }}>
+                    <span style={{ fontSize: '2.4rem' }}>{lang.flag}</span>
+                    <div>
+                      <h4 style={{ fontSize: '1.2rem', fontWeight: 800, margin: 0, color: '#ffffff' }}>{lang.name}</h4>
+                      <div style={{ fontSize: '0.9rem', color: '#fbbf24', fontWeight: 700 }}>
+                        {lang.script} ({lang.nativeName})
+                      </div>
+                    </div>
+                  </div>
+
+                  <div style={{ 
+                    fontSize: '0.78rem', 
+                    color: '#9ca3af', 
+                    background: 'rgba(0, 0, 0, 0.4)',
+                    padding: '8px 12px',
+                    borderRadius: '6px',
+                    marginBottom: '14px'
+                  }}>
+                    📍 {lang.region}
+                  </div>
+                </div>
+
+                {/* Card Action Buttons */}
+                <div style={{ display: 'flex', gap: '8px' }}>
+                  <button
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      setSelectedLang(lang.id);
+                      await onConfirmLanguage(lang.id);
+                    }}
+                    className="btn-primary"
+                    style={{ 
+                      flex: 1, 
+                      padding: '8px 12px', 
+                      fontSize: '0.8rem', 
+                      justifyContent: 'center',
+                      background: isConfirmed 
+                        ? 'linear-gradient(135deg, #10b981, #059669)'
+                        : 'linear-gradient(135deg, #f59e0b, #d97706)'
+                    }}
+                  >
+                    <Check size={14} /> {isConfirmed ? 'Active Language' : 'Lock & Set Voice'}
+                  </button>
+
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handlePlayTestVoice(lang);
+                    }}
+                    className="btn-secondary"
+                    style={{ padding: '8px 12px', fontSize: '0.8rem', justifyContent: 'center' }}
+                  >
+                    <Play size={14} color="#fbbf24" /> Sample
+                  </button>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* 4. ACTIVE SERVER AUDIO SCRIPT & AUDIO WAVEFORM SIMULATION */}
+      <div className="glass-card" style={{ padding: '24px', borderLeft: '4px solid #10b981', background: 'rgba(17, 24, 39, 0.95)' }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '14px', flexWrap: 'wrap', gap: '12px' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <Disc size={18} color="#34d399" className="spin-slow" />
+            <h4 style={{ fontSize: '1.05rem', fontWeight: 700, margin: 0, color: '#34d399' }}>
+              LIVE SERVER AUDIO ENGINE (SYNTHESIZED ON SERVER DISK)
+            </h4>
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px' }}>
+            <button
+              onClick={() => handlePlayTestVoice(activeLangObj)}
+              className="btn-secondary"
+              style={{ padding: '8px 16px', fontSize: '0.85rem' }}
+            >
+              <Play size={14} color="#fbbf24" /> Play Audio Preview
+            </button>
+
+            <span className="badge-emerald" style={{ padding: '6px 14px' }}>
+              ACTIVE: {activeLangObj.name.toUpperCase()} ({activeCityObj.name})
+            </span>
           </div>
         </div>
-      )}
+
+        {/* Audio Script Text Display */}
+        <p style={{
+          background: '#090d16',
+          padding: '16px',
+          borderRadius: '10px',
+          color: '#ffffff',
+          fontFamily: 'serif',
+          fontSize: '1.05rem',
+          lineHeight: '1.6',
+          margin: 0,
+          border: '1px solid rgba(16, 185, 129, 0.25)'
+        }}>
+          "{generateAudioScript(activeLangObj.id, panchang)}"
+        </p>
+
+        {isSyncing && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '14px', color: '#f59e0b', fontSize: '0.9rem', fontWeight: 600 }}>
+            <Loader2 size={18} className="animate-spin" />
+            <span>Downloading and storing 44.1kHz studio WAV audio file on server disk for ESP32 speaker...</span>
+          </div>
+        )}
+      </div>
 
     </div>
   );

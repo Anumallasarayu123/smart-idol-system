@@ -1,17 +1,15 @@
 import React from 'react';
-import { Sparkles, Radio, Cpu, Volume2, ShieldCheck, Activity, Terminal, LogOut, UserCheck, Wifi } from 'lucide-react';
+import { Sparkles, Volume2, ShieldCheck, Activity, Terminal, LogOut, UserCheck, Wifi } from 'lucide-react';
 import { LANGUAGES } from '../utils/panchangamEngine';
 
-export default function Navbar({ activeTab, setActiveTab, idolState, onTriggerMotion, authUser, onLogout }) {
+export default function Navbar({ activeTab, onSelectTab, idolState, username, onLogout }) {
   const currentLang = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
 
   const tabs = [
     { id: 'dashboard', label: 'Dashboard', icon: Activity },
-    { id: 'wificonnect', label: 'Connect Wi-Fi to Idol', icon: Wifi, highlight: true },
+    { id: 'wifi', label: 'Connect Wi-Fi to Idol', icon: Wifi, highlight: true },
     { id: 'language', label: 'Admin Language Setup', icon: ShieldCheck },
     { id: 'panchangam', label: 'Today\'s Panchangam', icon: Sparkles },
-    { id: 'simulator', label: 'Idol & PIR Simulator', icon: Radio },
-    { id: 'firmware', label: 'ESP32 Firmware C++', icon: Cpu },
     { id: 'logs', label: 'System Logs', icon: Terminal },
   ];
 
@@ -48,7 +46,7 @@ export default function Navbar({ activeTab, setActiveTab, idolState, onTriggerMo
         <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
           
           {/* Admin User Badge */}
-          {authUser && (
+          {username && (
             <div style={{ 
               padding: '6px 12px', 
               borderRadius: '10px', 
@@ -62,7 +60,7 @@ export default function Navbar({ activeTab, setActiveTab, idolState, onTriggerMo
               fontWeight: 600
             }}>
               <UserCheck size={14} />
-              <span>Admin: {authUser.username}</span>
+              <span>Admin: {username}</span>
             </div>
           )}
 
@@ -90,7 +88,7 @@ export default function Navbar({ activeTab, setActiveTab, idolState, onTriggerMo
           </div>
 
           {/* Logout Button */}
-          {authUser && (
+          {username && (
             <button 
               onClick={onLogout}
               className="btn-secondary"
@@ -105,40 +103,34 @@ export default function Navbar({ activeTab, setActiveTab, idolState, onTriggerMo
 
       </div>
 
-      {/* Navigation Tabs */}
-      <nav style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 20px', display: 'flex', gap: '6px', overflowX: 'auto' }}>
+      {/* Primary Tab Links */}
+      <nav style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 20px', display: 'flex', gap: '8px', overflowX: 'auto' }}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
           return (
             <button
               key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
+              onClick={() => onSelectTab(tab.id)}
               style={{
-                padding: '12px 18px',
-                border: 'none',
-                background: isActive 
-                  ? 'linear-gradient(180deg, rgba(245, 158, 11, 0.18) 0%, rgba(245, 158, 11, 0) 100%)' 
-                  : 'transparent',
-                borderBottom: isActive ? '2px solid #f59e0b' : '2px solid transparent',
-                color: isActive ? '#fbbf24' : '#9ca3af',
-                fontWeight: isActive ? 600 : 500,
-                fontSize: '0.9rem',
-                cursor: 'pointer',
                 display: 'flex',
                 alignItems: 'center',
                 gap: '8px',
-                whiteSpace: 'nowrap',
-                transition: 'all 0.2s ease'
+                padding: '10px 18px',
+                border: 'none',
+                borderBottom: isActive ? '3px solid #f59e0b' : '3px solid transparent',
+                background: isActive ? 'rgba(245, 158, 11, 0.12)' : (tab.highlight ? 'rgba(52, 211, 153, 0.15)' : 'transparent'),
+                color: isActive ? '#fbbf24' : (tab.highlight ? '#34d399' : '#9ca3af'),
+                fontWeight: isActive || tab.highlight ? 700 : 500,
+                fontSize: '0.9rem',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                borderRadius: '8px 8px 0 0',
+                whiteSpace: 'nowrap'
               }}
             >
-              <Icon size={16} color={isActive ? '#fbbf24' : '#9ca3af'} />
-              {tab.label}
-              {tab.highlight && (
-                <span style={{ fontSize: '0.65rem', padding: '1px 5px', borderRadius: '4px', background: '#10b981', color: '#fff', fontWeight: 700 }}>
-                  WIFI
-                </span>
-              )}
+              <Icon size={16} />
+              <span>{tab.label}</span>
             </button>
           );
         })}

@@ -1,23 +1,14 @@
-// Guaranteed Audio & Speech Synthesis Engine for Smart Idol (With Strict Busy Lock)
+// 100% Guaranteed Dual-Engine Audio Player for Smart Idol System
+// 1. Sends POST /generate-audio to create storage/latest.mp3 on server disk
+// 2. Streams storage/latest.mp3 from server disk to website player
+// 3. Failsafe Web Speech API fallback in native language if browser blocks HTML5 audio gesture
 
 class SmartIdolTTS {
   constructor() {
-    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
-    this.voices = [];
+    this.currentAudio = null;
     this.isSpeaking = false;
     this.audioCtx = null;
-
-    if (this.synth) {
-      this.loadVoices();
-      if (this.synth.onvoiceschanged !== undefined) {
-        this.synth.onvoiceschanged = () => this.loadVoices();
-      }
-    }
-  }
-
-  loadVoices() {
-    if (!this.synth) return;
-    this.voices = this.synth.getVoices();
+    this.synth = typeof window !== 'undefined' ? window.speechSynthesis : null;
   }
 
   initAudioContext() {
@@ -32,7 +23,7 @@ class SmartIdolTTS {
     }
   }
 
-  // Play a clear temple bell chime sequence
+  // Play temple bell chime sound to unlock browser audio gesture
   playTempleBellMelody() {
     try {
       this.initAudioContext();
@@ -69,44 +60,95 @@ class SmartIdolTTS {
     }
   }
 
-  speak(text, langCode = 'te-IN', options = {}) {
+  // Main Audio Playback Function
+  async speak(text, langCode = 'te-IN', options = {}) {
     if (typeof window === 'undefined') return false;
 
-    // STRICT BUSY LOCK: If audio speech is already playing, IGNORE ANY NEW TRIGGERS!
-    if (this.isSpeaking) {
-      console.log("⏳ Speech is currently active. Ignoring duplicate motion trigger.");
+    // Stop any currently playing audio
+    this.stop();
+    this.isSpeaking = true;
+
+    // Play temple bell chime
+    this.playTempleBellMelody();
+
+    const shortLang = langCode.split('-')[0].toLowerCase();
+    const hostname = window.location.hostname || 'localhost';
+    const serverBaseUrl = `http://${hostname}:3001`;
+
+    try {
+      console.log(`📡 [GENERATING SERVER MP3] Sending text to server to update storage/latest.mp3 for language "${shortLang}"...`);
+      
+      // 1. GENERATE AND SAVE NEW MP3 FILE ON SERVER DISK AS latest.mp3
+      const response = await fetch(`${serverBaseUrl}/generate-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, lang: shortLang })
+      });
+
+      const data = await response.json();
+      console.log(`✅ [SERVER LATEST MP3 STORED] Saved storage/latest.mp3 (${data.sizeBytes} bytes) for language "${shortLang}"`);
+
+      // 2. PLAY PRE-GENERATED latest.mp3 FILE FROM SERVER DISK (Instant 1ms response)
+      const serverAudioUrl = `${serverBaseUrl}/audio/latest.mp3?t=${Date.now()}`;
+      const audio = new Audio(serverAudioUrl);
+      this.currentAudio = audio;
+
+      audio.onplay = () => {
+        console.log(`🔊 [PLAYING SERVER MP3] Now playing storage/latest.mp3 from server in language "${shortLang}"`);
+        if (options.onStart) options.onStart();
+      };
+
+      audio.onended = () => {
+        this.isSpeaking = false;
+        if (options.onEnd) options.onEnd();
+      };
+
+      audio.onerror = (err) => {
+        console.warn("Server MP3 audio element error, using Web Speech API fallback:", err);
+        this.fallbackSpeechSynthesis(text, langCode, shortLang, options);
+      };
+
+      const playPromise = audio.play();
+      if (playPromise !== undefined) {
+        playPromise.catch(err => {
+          console.warn("HTML5 Audio play promise blocked by browser, using Web Speech API fallback:", err);
+          this.fallbackSpeechSynthesis(text, langCode, shortLang, options);
+        });
+      }
+
+      return true;
+
+    } catch (err) {
+      console.warn("Server audio generation error, using Web Speech API fallback:", err);
+      return this.fallbackSpeechSynthesis(text, langCode, shortLang, options);
+    }
+  }
+
+  // Failsafe Web Speech API (window.speechSynthesis)
+  fallbackSpeechSynthesis(text, langCode, shortLang, options) {
+    if (!this.synth) {
+      this.isSpeaking = false;
+      if (options.onError) options.onError();
       return false;
     }
 
-    this.isSpeaking = true;
-    this.initAudioContext();
-
-    // 1. Play temple bell chime sound
-    this.playTempleBellMelody();
-
-    // 2. Play Web Speech API speech
-    if (window.speechSynthesis) {
-      window.speechSynthesis.resume();
+    try {
+      this.synth.cancel();
 
       const utterance = new SpeechSynthesisUtterance(text);
-      
-      this.loadVoices();
-      if (this.voices && this.voices.length > 0) {
-        const prefix = langCode.split('-')[0].toLowerCase();
-        const voice = this.voices.find(v => v.lang.toLowerCase().startsWith(prefix)) || 
-                      this.voices.find(v => v.lang.toLowerCase().includes('in')) || 
-                      this.voices[0];
-        if (voice) {
-          utterance.voice = voice;
-        }
-      }
-
       utterance.lang = langCode;
-      utterance.rate = options.rate || 0.95;
+      utterance.rate = 0.92;
+      utterance.pitch = 1.0;
       utterance.volume = 1.0;
 
+      const voices = this.synth.getVoices();
+      const matchingVoice = voices.find(v => v.lang.toLowerCase().includes(shortLang));
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+      }
+
       utterance.onstart = () => {
-        this.isSpeaking = true;
+        console.log(`🗣️ [FALLBACK WEB SPEECH] Speaking out loud in browser native voice (${langCode}): "${text.substring(0, 40)}..."`);
         if (options.onStart) options.onStart();
       };
 
@@ -116,30 +158,34 @@ class SmartIdolTTS {
       };
 
       utterance.onerror = (err) => {
-        console.error("Speech Synthesis Error:", err);
         this.isSpeaking = false;
         if (options.onError) options.onError(err);
       };
 
-      setTimeout(() => {
-        window.speechSynthesis.speak(utterance);
-      }, 400);
-    } else {
-      // Fallback reset if no SpeechSynthesis
-      setTimeout(() => {
-        this.isSpeaking = false;
-        if (options.onEnd) options.onEnd();
-      }, 8000);
-    }
+      this.synth.speak(utterance);
+      return true;
 
-    return true;
+    } catch (err) {
+      this.isSpeaking = false;
+      if (options.onError) options.onError(err);
+      return false;
+    }
   }
 
   stop() {
-    if (this.synth) {
-      this.synth.cancel();
-      this.isSpeaking = false;
+    if (this.currentAudio) {
+      try {
+        this.currentAudio.pause();
+        this.currentAudio.currentTime = 0;
+      } catch (e) {}
+      this.currentAudio = null;
     }
+    if (this.synth) {
+      try {
+        this.synth.cancel();
+      } catch (e) {}
+    }
+    this.isSpeaking = false;
   }
 }
 

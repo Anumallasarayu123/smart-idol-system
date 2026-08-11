@@ -1,7 +1,18 @@
-// Panchangam Engine for Smart Idol System (All India Multi-Language & Multi-City Support)
-import panchangDb from '../data/panchangam_database.json';
+const fs = require('fs');
+const path = require('path');
 
-export const CITIES = [
+const DB_PATH = path.resolve(__dirname, '../data/panchangam_database.json');
+
+let panchangDb = {};
+try {
+  if (fs.existsSync(DB_PATH)) {
+    panchangDb = JSON.parse(fs.readFileSync(DB_PATH, 'utf8'));
+  }
+} catch (e) {
+  console.warn('Could not load panchangam_database.json:', e.message);
+}
+
+const CITIES = [
   // SOUTH INDIA
   { id: 'hyderabad', name: 'Hyderabad', state: 'Telangana', lat: 17.3850, lon: 78.4867, nameTe: 'హైదరాబాద్', nameHi: 'हैदराबाद', nameTa: 'ஹைதராபாத்', nameKn: 'హైదరాబాద్' },
   { id: 'tirupati', name: 'Tirupati', state: 'Andhra Pradesh', lat: 13.6288, lon: 79.4192, nameTe: 'తిరుపతి', nameHi: 'तिरुपति', nameTa: 'திருப்பதி', nameKn: 'తిరుపతి' },
@@ -9,54 +20,38 @@ export const CITIES = [
   { id: 'visakhapatnam', name: 'Visakhapatnam', state: 'Andhra Pradesh', lat: 17.6868, lon: 83.2185, nameTe: 'విశాఖపట్నం', nameHi: 'विशाखापत्तनम', nameTa: 'விசாகப்பட்டினம்', nameKn: 'ವಿಶಾಖಪಟ್ಟಣಂ' },
   { id: 'bengaluru', name: 'Bengaluru', state: 'Karnataka', lat: 12.9716, lon: 77.5946, nameTe: 'బెంగళూరు', nameHi: 'बेंगलुरु', nameTa: 'பெங்களூரு', nameKn: 'ಬೆಂಗಳೂರು' },
   { id: 'mysuru', name: 'Mysuru', state: 'Karnataka', lat: 12.2958, lon: 76.6394, nameTe: 'మైసూర్', nameHi: 'मैसूर', nameTa: 'மைசூர்', nameKn: 'ಮೈಸೂರು' },
-  { id: 'chennai', name: 'Chennai', state: 'Tamil Nadu', lat: 13.0827, lon: 80.2707, nameTe: 'చెన్నై', nameHi: 'चेन्नई', nameTa: 'சென்னை', nameKn: 'ಚೆನ್ನೈ' },
+  { id: 'chennai', name: 'Chennai', state: 'Tamil Nadu', lat: 13.0827, lon: 80.2707, nameTe: 'చెన్నై', nameHi: 'चेन्नई', nameTa: 'சென்னை', nameKn: 'ಚೆන්නై' },
   { id: 'madurai', name: 'Madurai', state: 'Tamil Nadu', lat: 9.9252, lon: 78.1198, nameTe: 'మధురై', nameHi: 'मदुरै', nameTa: 'மதுரை', nameKn: 'ಮಧುರೈ' },
   { id: 'coimbatore', name: 'Coimbatore', state: 'Tamil Nadu', lat: 11.0168, lon: 76.9558, nameTe: 'కోయంబత్తూర్', nameHi: 'कोयंबटूर', nameTa: 'கோயம்புத்தூர்', nameKn: 'ಕೊಯಮುತ್ತೂರು' },
   { id: 'thiruvananthapuram', name: 'Thiruvananthapuram', state: 'Kerala', lat: 8.5241, lon: 76.9366, nameTe: 'తిరువనంతపురం', nameHi: 'तिरुवनंतपुरम', nameTa: 'திருவனந்தபுரம்', nameKn: 'ತಿರುವನಂತಪುರಂ' },
-  { id: 'kochi', name: 'Kochi', state: 'Kerala', lat: 9.9312, lon: 76.2673, nameTe: 'కొచ్చి', nameHi: 'कोच्चि', nameTa: 'கொச்சி', nameKn: 'ಕೊಚ್ಚಿ' },
+  { id: 'kochi', name: 'Kochi', state: 'Kerala', lat: 9.9312, lon: 76.2673, nameTe: 'కొచ్చి', nameHi: 'कोच्चि', nameTa: 'കൊച്ചി', nameKn: 'ಕೊಚ್ಚി' },
 
   // NORTH INDIA
   { id: 'delhi', name: 'New Delhi', state: 'Delhi NCR', lat: 28.6139, lon: 77.2090, nameTe: 'న్యూఢిల్లీ', nameHi: 'नई दिल्ली', nameTa: 'புது தில்லி', nameKn: 'ನವದೆಹಲಿ' },
-  { id: 'varanasi', name: 'Varanasi', state: 'Uttar Pradesh', lat: 25.3176, lon: 82.9739, nameTe: 'వారణాసి', nameHi: 'वाराणसी', nameTa: 'வாரணாசி', nameKn: 'ವಾರಣಾಸಿ' },
-  { id: 'ayodhya', name: 'Ayodhya', state: 'Uttar Pradesh', lat: 26.7922, lon: 82.1998, nameTe: 'అయోధ్య', nameHi: 'अयोध्या', nameTa: 'அயோத்தி', nameKn: 'అయోధ్యె' },
+  { id: 'varanasi', name: 'Varanasi', state: 'Uttar Pradesh', lat: 25.3176, lon: 82.9739, nameTe: 'వారణాసి', nameHi: 'वाराणसी', nameTa: 'வாரணாசி', nameKn: '<ctrl42>వారణಾಸಿ' },
+  { id: 'ayodhya', name: 'Ayodhya', state: 'Uttar Pradesh', lat: 26.7922, lon: 82.1998, nameTe: 'అయోధ్య', nameHi: 'अयोध्या', nameTa: 'அயோத்தி', nameKn: 'ಅಯೋಧ್ಯೆ' },
   { id: 'mathura', name: 'Mathura', state: 'Uttar Pradesh', lat: 27.4924, lon: 77.6737, nameTe: 'మధుర', nameHi: 'मथुरा', nameTa: 'மதுரா', nameKn: 'ਮਥੁਰਾ' },
   { id: 'prayagraj', name: 'Prayagraj', state: 'Uttar Pradesh', lat: 25.4358, lon: 81.8463, nameTe: 'ప్రయాగ్‌రాజ్', nameHi: 'प्रयागराज', nameTa: 'பிரயாக்ராஜ்', nameKn: 'ಪ್ರಯಾಗ್‌ರಾಜ್' },
   { id: 'jaipur', name: 'Jaipur', state: 'Rajasthan', lat: 26.9124, lon: 75.7873, nameTe: 'జైపూర్', nameHi: 'जयपुर', nameTa: 'ஜெய்ப்பூர்', nameKn: 'ಜೈಪುರ' },
   { id: 'chandigarh', name: 'Chandigarh', state: 'Punjab / Haryana', lat: 30.7333, lon: 76.7794, nameTe: 'చండీగఢ్', nameHi: 'चंडीगढ़', nameTa: 'ਸੰਡਿਗੜ੍ਹ', nameKn: 'ਚੰਡੀਗੜ੍ਹ' },
-  { id: 'jammu', name: 'Jammu', state: 'Jammu & Kashmir', lat: 32.7266, lon: 74.8570, nameTe: 'జమ్మూ', nameHi: 'जम्मू', nameTa: 'ஜம்மு', nameKn: 'ಜಮ್ಮು' },
+  { id: 'jammu', name: 'Jammu', state: 'Jammu & Kashmir', lat: 32.7266, lon: 74.8570, nameTe: 'జమ్మూ', nameHi: 'जम्मू', nameTa: 'ஜம்மு', nameKn: 'ಜమ్మੁ' },
 
   // WEST INDIA
   { id: 'mumbai', name: 'Mumbai', state: 'Maharashtra', lat: 19.0760, lon: 72.8777, nameTe: 'ముంబై', nameHi: 'मुंबई', nameTa: 'மும்பை', nameKn: 'மும்பை' },
   { id: 'pune', name: 'Pune', state: 'Maharashtra', lat: 18.5204, lon: 73.8567, nameTe: 'పుణే', nameHi: 'पुणे', nameTa: 'புனே', nameKn: 'ಪುಣೆ' },
-  { id: 'ahmedabad', name: 'Ahmedabad', state: 'Gujarat', lat: 23.0225, lon: 72.5714, nameTe: 'అహ్మదాబాద్', nameHi: 'अहमदाबाद', nameTa: 'அகமதாபாத்', nameKn: 'ಅಹಮದಾಬಾದ್' },
+  { id: 'ahmedabad', name: 'Ahmedabad', state: 'Gujarat', lat: 23.0225, lon: 72.5714, nameTe: 'అహ్మదాబాద్', nameHi: 'अहमदाबाद', nameTa: 'அகமதாபாத்', nameKn: 'ಅಹਮਦਾਬਾਦ' },
   { id: 'panaji', name: 'Panaji', state: 'Goa', lat: 15.4909, lon: 73.8278, nameTe: 'పనాజీ', nameHi: 'पणजी', nameTa: 'பணாஜி', nameKn: 'ಪಣಜಿ' },
 
   // EAST & NORTH-EAST INDIA
   { id: 'kolkata', name: 'Kolkata', state: 'West Bengal', lat: 22.5726, lon: 88.3639, nameTe: 'కోల్‌కతా', nameHi: 'कोलकाता', nameTa: 'கொல்கத்தா', nameKn: 'ಕೊಲ್ಕತ್ತಾ' },
   { id: 'bhubaneswar', name: 'Bhubaneswar', state: 'Odisha', lat: 20.2961, lon: 85.8245, nameTe: 'భువనేశ్వర్', nameHi: 'भुवनेश्वर', nameTa: 'புவனேஸ்வர்', nameKn: 'ଭୁବନେଶ୍ୱର' },
   { id: 'puri', name: 'Puri', state: 'Odisha', lat: 19.8135, lon: 85.8312, nameTe: 'పూరీ', nameHi: 'पुरी', nameTa: 'பூரி', nameKn: 'ପୁରୀ' },
-  { id: 'patna', name: 'Patna', state: 'Bihar', lat: 25.5941, lon: 85.1376, nameTe: 'పాట్నా', nameHi: 'पटना', nameTa: 'பாட்னா', nameKn: 'ಪಾಟ್නා' },
+  { id: 'patna', name: 'Patna', state: 'Bihar', lat: 25.5941, lon: 85.1376, nameTe: 'పాట్నా', nameHi: 'पटना', nameTa: 'பாட்னா', nameKn: 'ಪಾಟ್ನಾ' },
   { id: 'guwahati', name: 'Guwahati', state: 'Assam', lat: 26.1445, lon: 91.7362, nameTe: 'గువాహటి', nameHi: 'गुवाहाटी', nameTa: 'கௌஹாத்தி', nameKn: 'ਗੁਵਾਹਾਟੀ' },
 
   // CENTRAL INDIA
   { id: 'bhopal', name: 'Bhopal', state: 'Madhya Pradesh', lat: 23.2599, lon: 77.4126, nameTe: 'భోపాల్', nameHi: 'भोपाल', nameTa: 'போபால்', nameKn: 'ಭೋಪಾಲ್' },
   { id: 'indore', name: 'Indore', state: 'Madhya Pradesh', lat: 22.7196, lon: 75.8577, nameTe: 'ఇండోర్', nameHi: 'इंदौर', nameTa: 'இந்தூர்', nameKn: 'ಇಂದೋರ್' },
-];
-
-export const LANGUAGES = [
-  { id: 'telugu', name: 'Telugu', nativeName: 'తెలుగు', flag: '🇮🇳', code: 'te-IN', region: 'Andhra & Telangana', script: 'తెలుగు' },
-  { id: 'hindi', name: 'Hindi', nativeName: 'हिन्दी', flag: '🇮🇳', code: 'hi-IN', region: 'North & Central India', script: 'देवनागरी' },
-  { id: 'tamil', name: 'Tamil', nativeName: 'தமிழ்', flag: '🇮🇳', code: 'ta-IN', region: 'Tamil Nadu & Puducherry', script: 'தமிழ்' },
-  { id: 'kannada', name: 'Kannada', nativeName: 'ಕನ್ನಡ', flag: '🇮🇳', code: 'kn-IN', region: 'Karnataka', script: 'ಕನ್ನಡ' },
-  { id: 'malayalam', name: 'Malayalam', nativeName: 'മലയാളം', flag: '🇮🇳', code: 'ml-IN', region: 'Kerala & Lakshadweep', script: 'മലയാളം' },
-  { id: 'marathi', name: 'Marathi', nativeName: 'मराठी', flag: '🇮🇳', code: 'mr-IN', region: 'Maharashtra', script: 'देवनागरी' },
-  { id: 'gujarati', name: 'Gujarati', nativeName: 'ગુજરાતી', flag: '🇮🇳', code: 'gu-IN', region: 'Gujarat', script: 'ગુજરાતી' },
-  { id: 'bengali', name: 'Bengali', nativeName: 'বাংলা', flag: '🇮🇳', code: 'bn-IN', region: 'West Bengal & Tripura', script: 'বাংলা' },
-  { id: 'oriya', name: 'Odia', nativeName: 'ଓଡ଼ିଆ', flag: '🇮🇳', code: 'or-IN', region: 'Odisha', script: 'ଓଡ଼ିଆ' },
-  { id: 'punjabi', name: 'Punjabi', nativeName: 'ਪੰਜਾਬੀ', flag: '🇮🇳', code: 'pa-IN', region: 'Punjab', script: 'ਗੁਰਮੁਖੀ' },
-  { id: 'assamese', name: 'Assamese', nativeName: 'অসমীয়া', flag: '🇮🇳', code: 'as-IN', region: 'Assam', script: 'অসমীয়া' },
-  { id: 'sanskrit', name: 'Sanskrit', nativeName: 'संस्कृतम्', flag: '🇮🇳', code: 'sa-IN', region: 'Universal Devotional', script: 'देवनागरी' },
-  { id: 'english', name: 'English', nativeName: 'English', flag: '🇬🇧', code: 'en-IN', region: 'Pan-India / Global', script: 'Latin' },
 ];
 
 const TE_MONTHS = ["జనవరి", "ఫిబ్రవరి", "మార్చి", "ఏప్రిల్", "మే", "జూన్", "జూలై", "ఆగస్టు", "సెప్టెంబరు", "అక్టోబరు", "నవంబరు", "డిసెంబరు"];
@@ -112,7 +107,7 @@ function calculateRahuKalam(sunriseMins, sunsetMins, dayOfWeek) {
   return `${formatMinutes(rahuStart)} – ${formatMinutes(rahuEnd)}`;
 }
 
-export function getDailyPanchangam(cityId = 'hyderabad', targetDate = new Date()) {
+function getDailyPanchangam(cityId = 'hyderabad', targetDate = new Date()) {
   const city = CITIES.find(c => c.id === cityId) || CITIES[0];
   const year = targetDate.getFullYear();
   const month = String(targetDate.getMonth() + 1).padStart(2, '0');
@@ -134,7 +129,6 @@ export function getDailyPanchangam(cityId = 'hyderabad', targetDate = new Date()
   const entry = panchangDb[dateKey];
 
   if (entry) {
-    // PREFER EXACT USER DATABASE TIMINGS FIRST BEFORE GENERIC CALCULATION
     const finalSunrise = entry.sunrise || sunTimings.sunrise;
     const finalSunset = entry.sunset || sunTimings.sunset;
     const finalRahuKalam = entry.rahuKalam || rahuKalamStr;
@@ -170,10 +164,7 @@ export function getDailyPanchangam(cityId = 'hyderabad', targetDate = new Date()
 
       sunrise: finalSunrise,
       sunset: finalSunset,
-      rahuKalam: finalRahuKalam,
-      yamagandam: entry.yamagandam || '12:47 PM – 2:27 PM',
-      gulikaKalam: entry.gulikaKalam || '1:20 PM – 2:52 PM',
-      abhijitMuhurtham: '11:56 AM – 12:48 PM',
+      rahuKalam: finalRahuKalam
     };
   }
 
@@ -208,55 +199,11 @@ export function getDailyPanchangam(cityId = 'hyderabad', targetDate = new Date()
 
     sunrise: sunTimings.sunrise,
     sunset: sunTimings.sunset,
-    rahuKalam: rahuKalamStr,
-    yamagandam: '12:47 PM – 2:27 PM',
-    abhijitMuhurtham: '11:56 AM – 12:48 PM',
+    rahuKalam: rahuKalamStr
   };
 }
 
-// 🌐 HELPER TO GET EXACT NATIVE TRANSLATION FOR PANCHANGAM CARDS
-export function getLocalizedPanchangFields(panchang, langId) {
-  const langKey = (langId || 'te').split('-')[0].toLowerCase();
-
-  // TELUGU
-  if (langKey === 'te' || langKey === 'telugu') {
-    return {
-      tithi: panchang.tithiTe || panchang.tithiEn,
-      nakshatra: panchang.nakshatraTe || panchang.nakshatraEn,
-      yoga: panchang.yogaTe || panchang.yogaEn,
-      karana: panchang.karanaTe || panchang.karanaEn,
-      sunrise: panchang.sunrise,
-      sunset: panchang.sunset,
-      rahuKalam: panchang.rahuKalam
-    };
-  }
-
-  // HINDI / MARATHI / SANSKRIT
-  if (langKey === 'hi' || langKey === 'hindi' || langKey === 'mr' || langKey === 'marathi' || langKey === 'sa' || langKey === 'sanskrit') {
-    return {
-      tithi: panchang.tithiHi || panchang.tithiEn,
-      nakshatra: panchang.nakshatraHi || panchang.nakshatraEn,
-      yoga: panchang.yogaHi || panchang.yogaEn,
-      karana: panchang.karanaHi || panchang.karanaEn,
-      sunrise: panchang.sunrise,
-      sunset: panchang.sunset,
-      rahuKalam: panchang.rahuKalam
-    };
-  }
-
-  // DEFAULT (ENGLISH / OTHER)
-  return {
-    tithi: panchang.tithiEn,
-    nakshatra: panchang.nakshatraEn,
-    yoga: panchang.yogaEn,
-    karana: panchang.karanaEn,
-    sunrise: panchang.sunrise,
-    sunset: panchang.sunset,
-    rahuKalam: panchang.rahuKalam
-  };
-}
-
-export function generateAudioScript(langId, panchang) {
+function generateAudioScript(langId, panchang) {
   const city = panchang.cityObj || CITIES[0];
   const langKey = (langId || 'te').split('-')[0].toLowerCase();
 
@@ -323,3 +270,9 @@ export function generateAudioScript(langId, panchang) {
   // ENGLISH DEFAULT
   return `Welcome Devotee. Today's Date: ${panchang.dateSpokenEn}. Today's Panchangam for ${city.name}. Tithi: ${panchang.tithiEn}. Nakshatra: ${panchang.nakshatraEn}. Yoga: ${panchang.yogaEn}. Karana: ${panchang.karanaEn}. Rahu Kalam: ${panchang.rahuKalam}. Sunrise: ${panchang.sunrise}, Sunset: ${panchang.sunset}. Have a blessed day.`;
 }
+
+module.exports = {
+  CITIES,
+  getDailyPanchangam,
+  generateAudioScript
+};

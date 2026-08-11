@@ -3,192 +3,92 @@ import Navbar from './components/Navbar';
 import DashboardOverview from './components/DashboardOverview';
 import LanguageSelector from './components/LanguageSelector';
 import PanchangamView from './components/PanchangamView';
-import HardwareSimulator from './components/HardwareSimulator';
-import FirmwareExporter from './components/FirmwareExporter';
 import LogsViewer from './components/LogsViewer';
-import LoginPage from './components/LoginPage';
 import WifiProvisioning from './components/WifiProvisioning';
-import { INITIAL_IDOL_STATE, INITIAL_LOGS } from './mockData/idolState';
+import LoginPage from './components/LoginPage';
+import { INITIAL_IDOL_STATE } from './mockData/idolState';
 import { LANGUAGES, CITIES, generateAudioScript, getDailyPanchangam } from './utils/panchangamEngine';
 import { ttsEngine } from './utils/ttsEngine';
-import { Volume2, VolumeX, AlertCircle, Wifi, Play, Sparkles, CheckCircle2, Zap } from 'lucide-react';
 
 export default function App() {
+  // Authentication State
   const [authUser, setAuthUser] = useState(() => {
-    const saved = localStorage.getItem('smart_idol_admin_auth');
-    return saved ? JSON.parse(saved) : null;
+    return localStorage.getItem('smart_idol_admin') || null;
   });
 
-  const [activeTab, setActiveTab] = useState('wificonnect');
-  const [idolState, setIdolState] = useState(INITIAL_IDOL_STATE);
-  const [logs, setLogs] = useState(INITIAL_LOGS);
-  const [currentDate, setCurrentDate] = useState(new Date());
-  const [audioUnlocked, setAudioUnlocked] = useState(false);
+  // Idol Hardware & Panchangam System State
+  const [idolState, setIdolState] = useState(() => {
+    const saved = localStorage.getItem('smart_idol_state');
+    return saved ? JSON.parse(saved) : INITIAL_IDOL_STATE;
+  });
+
+  // Active UI Navigation Tab
+  const [activeTab, setActiveTab] = useState('dashboard');
+
+  // Real-time Motion Alert Banner State
   const [lastMotionBanner, setLastMotionBanner] = useState(null);
-  const [discoveredEspIp, setDiscoveredEspIp] = useState('192.168.31.186');
+  const [isSyncingLanguage, setIsSyncingLanguage] = useState(false);
 
-  // Handle Login Success
-  const handleLoginSuccess = (userData) => {
-    setAuthUser(userData);
-    localStorage.setItem('smart_idol_admin_auth', JSON.stringify(userData));
-
-    const newLog = {
-      id: Date.now(),
-      timestamp: new Date().toLocaleTimeString('en-IN'),
-      type: 'ADMIN_LOGIN',
-      detail: `Administrator ${userData.username} logged in successfully`,
-      source: 'Admin Portal'
-    };
-    setLogs(prev => [newLog, ...prev]);
-  };
-
-  // Handle Logout
-  const handleLogout = () => {
-    setAuthUser(null);
-    localStorage.removeItem('smart_idol_admin_auth');
-  };
-
-  // Wi-Fi Provisioning
-  const handleUpdateWifiCredentials = (ssid, password) => {
-    setIdolState(prev => ({
-      ...prev,
-      isOnline: true,
-      wifiSsid: ssid,
-      ipAddress: discoveredEspIp || 'smart-idol.local'
-    }));
-
-    const newLog = {
-      id: Date.now(),
-      timestamp: new Date().toLocaleTimeString('en-IN'),
-      type: 'WIFI_PROVISIONED',
-      detail: `Smart Idol connected dynamically to network "${ssid}"`,
-      source: 'Dynamic Wi-Fi Manager'
-    };
-    setLogs(prev => [newLog, ...prev]);
-  };
-
-  // Enable Speaker Audio Engine on user click & IMMEDIATELY PLAY PANCHANGAM ANNOUNCEMENT
-  const handleUnlockAudio = () => {
-    setAudioUnlocked(true);
-
-    const currentLangObj = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
-    const currentCityObj = CITIES.find(c => c.id === idolState.activeCity) || CITIES[0];
-    const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
-
-    setLastMotionBanner(`⚡ SPEAKER AUDIO ENABLED! Playing ${currentCityObj.name} Panchangam in ${currentLangObj.name}...`);
-
-    // Lock state to ANNOUNCING
-    setIdolState(prev => ({
-      ...prev,
-      pirState: 'ANNOUNCING',
-      totalTriggersToday: prev.totalTriggersToday + 1,
-      lastTriggerTime: currentTime
-    }));
-
-    const newLog = {
-      id: Date.now(),
-      timestamp: currentTime,
-      type: 'AUDIO_UNLOCKED',
-      detail: `Speaker Audio Engine enabled by Administrator. Playing ${currentCityObj.name} Panchangam in ${currentLangObj.name}.`,
-      source: 'Speaker Manager'
-    };
-    setLogs(prev => [newLog, ...prev]);
-
-    // Play Temple Chime + Full Spoken Panchangam Speech
-    const panchang = getDailyPanchangam(idolState.activeCity, currentDate);
-    const audioScriptText = generateAudioScript(currentLangObj.id, panchang);
-
-    // Sync spoken Panchangam text string with Node.js bridge server
-    fetch('http://localhost:3001/update-panchangam-text', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: audioScriptText, lang: currentLangObj.code })
-    }).catch(() => {});
-
-    ttsEngine.speak(audioScriptText, currentLangObj.code, {
-      onEnd: () => {
-        setTimeout(() => {
-          setIdolState(prev => ({ ...prev, pirState: 'IDLE' }));
-          setLastMotionBanner(null);
-        }, 1000);
-      },
-      onError: () => {
-        setTimeout(() => {
-          setIdolState(prev => ({ ...prev, pirState: 'IDLE' }));
-          setLastMotionBanner(null);
-        }, 1000);
+  // System Event Logs State
+  const [logs, setLogs] = useState(() => {
+    return [
+      {
+        id: Date.now(),
+        timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
+        type: 'SYSTEM_BOOT',
+        detail: 'Smart Idol System initialized. Motion sensors active on Port 3001.',
+        source: 'ESP32 Firmware Core'
       }
-    });
-  };
+    ];
+  });
 
-  // AUTOMATIC NETWORK DISCOVERY & MOTION POLLING (WITH ZERO-QUEUEING DISCARD)
+  // Current Date for Ephemeris Panchangam Calculations
+  const [currentDate] = useState(new Date());
+
+  // Save Idol State to LocalStorage on Change
   useEffect(() => {
-    if (!authUser || !audioUnlocked) return;
+    localStorage.setItem('smart_idol_state', JSON.stringify(idolState));
+  }, [idolState]);
 
+  // Poll Express Server for Real ESP32 Hardware Motion Signals
+  useEffect(() => {
+    const hostname = window.location.hostname || 'localhost';
     const pollInterval = setInterval(() => {
-      // RULE: IF AUDIO IS CURRENTLY PLAYING, DRAIN & DISCARD ALL INCOMING TRIGGERS IMMEDIATELY!
-      if (idolState.pirState === 'ANNOUNCING' || ttsEngine.isSpeaking) {
-        // Drain pending motion signals so they are NOT stored in queue!
-        if (discoveredEspIp) {
-          fetch(`http://${discoveredEspIp}/motion`).catch(() => {});
-        }
-        fetch('http://localhost:3001/motion-status').catch(() => {});
-        return;
-      }
-
-      // ONLY PROCESS TRIGGERS WHEN IDOL IS IDLE AND NOT PLAYING AUDIO!
-      if (discoveredEspIp) {
-        fetch(`http://${discoveredEspIp}/motion`)
-          .then(res => res.json())
-          .then(data => {
-            if (data && data.motion && idolState.pirState !== 'ANNOUNCING' && !ttsEngine.isSpeaking) {
-              console.log(`⚡ Fresh ESP32 Motion Signal Received while Idle!`);
-              handleTriggerMotion();
-            }
-          })
-          .catch(() => {});
-      }
-
-      fetch('http://localhost:3001/motion-status')
+      fetch(`http://${hostname}:3001/motion-status`)
         .then(res => res.json())
         .then(data => {
-          if (data && data.motion && idolState.pirState !== 'ANNOUNCING' && !ttsEngine.isSpeaking) {
-            console.log("⚡ Fresh Bridge Server Motion Signal Received while Idle!");
+          if (data.motion) {
+            console.log("⚡ REAL ESP32 MOTION SIGNAL DETECTED VIA SERVER!");
             handleTriggerMotion();
           }
         })
         .catch(() => {});
-
     }, 400);
 
     return () => clearInterval(pollInterval);
-  }, [idolState, currentDate, authUser, audioUnlocked, discoveredEspIp]);
+  }, [idolState.activeLanguage, idolState.activeCity]);
 
-  // Automatic Midnight Rollover Listener & Daily Panchangam Refresh
-  useEffect(() => {
-    const timer = setInterval(() => {
-      const now = new Date();
-      if (now.getDate() !== currentDate.getDate()) {
-        setCurrentDate(now);
+  // Handle Login Action
+  const handleLoginSuccess = (username) => {
+    setAuthUser(username);
+    localStorage.setItem('smart_idol_admin', username);
+  };
 
-        const newLog = {
-          id: Date.now(),
-          timestamp: '12:00:00 AM (Midnight)',
-          type: 'PANCHANAM_REFRESH',
-          detail: `Midnight Rollover: Daily Panchangam automatically recalculated for ${now.toDateString()}`,
-          source: 'Automatic Midnight Engine'
-        };
-        setLogs(prev => [newLog, ...prev]);
-      }
-    }, 10000);
+  // Handle Logout Action
+  const handleLogout = () => {
+    setAuthUser(null);
+    localStorage.removeItem('smart_idol_admin');
+  };
 
-    return () => clearInterval(timer);
-  }, [currentDate]);
+  // ⚡ STRICT SYNCHRONOUS ADMIN LANGUAGE CONFIRMATION (Updates Server Audio & State)
+  const handleConfirmLanguage = async (newLangId) => {
+    const langObj = LANGUAGES.find(l => l.id === newLangId) || LANGUAGES[0];
+    setIsSyncingLanguage(true);
 
-  // Handle Admin Language Confirmation
-  const handleConfirmLanguage = (newLangId) => {
-    const langObj = LANGUAGES.find(l => l.id === newLangId);
+    // Stop any currently playing audio when switching language
+    ttsEngine.stop();
 
+    // 1. Update React Idol State
     setIdolState(prev => ({
       ...prev,
       activeLanguage: newLangId
@@ -198,16 +98,45 @@ export default function App() {
       id: Date.now(),
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
       type: 'LANGUAGE_CONFIRMED',
-      detail: `Admin confirmed & locked idol language to ${langObj.name} (${langObj.script})`,
+      detail: `Admin switched & locked idol language to ${langObj.name} (${langObj.nativeName})`,
       source: 'React Admin Dashboard'
     };
 
     setLogs(prev => [newLog, ...prev]);
+
+    // 2. AWAIT SERVER AUDIO GENERATION (MP3 & WAV) FOR WEBPAGE AND ESP32 SPEAKER
+    const panchang = getDailyPanchangam(idolState.activeCity, currentDate);
+    const audioScriptText = generateAudioScript(langObj.id, panchang);
+    const hostname = window.location.hostname || 'localhost';
+
+    try {
+      const response = await fetch(`http://${hostname}:3001/generate-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: audioScriptText, 
+          lang: langObj.code.split('-')[0], 
+          city: idolState.activeCity 
+        })
+      });
+      const data = await response.json();
+      if (data.status === 'ok') {
+        console.log(`✅ [RESPECTIVE LANGUAGE & LOCATION AUDIO SYNC] Server updated audio for ${langObj.name} in ${idolState.activeCity}: storage/latest.mp3 (${data.sizeBytes} bytes)`);
+      }
+    } catch (err) {
+      console.error("Language sync error:", err);
+    } finally {
+      setIsSyncingLanguage(false);
+    }
   };
 
-  // Handle Admin City Location Confirmation
-  const handleConfirmCity = (newCityId) => {
+  // Handle Admin City Location Confirmation (Updates Server Audio & Location Panchangam)
+  const handleConfirmCity = async (newCityId) => {
     const cityObj = CITIES.find(c => c.id === newCityId) || CITIES[0];
+    const currentLangObj = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
+    setIsSyncingLanguage(true);
+
+    ttsEngine.stop();
 
     setIdolState(prev => ({
       ...prev,
@@ -217,35 +146,57 @@ export default function App() {
     const newLog = {
       id: Date.now(),
       timestamp: new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' }),
-      type: 'LOCATION_CONFIRMED',
-      detail: `Admin calibrated Panchangam location to ${cityObj.name}, ${cityObj.state}`,
+      type: 'CITY_UPDATED',
+      detail: `Admin updated idol location to ${cityObj.name}, ${cityObj.state}`,
       source: 'React Admin Dashboard'
     };
-
     setLogs(prev => [newLog, ...prev]);
+
+    const panchang = getDailyPanchangam(newCityId, currentDate);
+    const audioScriptText = generateAudioScript(currentLangObj.id, panchang);
+    const hostname = window.location.hostname || 'localhost';
+
+    try {
+      const response = await fetch(`http://${hostname}:3001/generate-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: audioScriptText, 
+          lang: currentLangObj.code.split('-')[0], 
+          city: newCityId 
+        })
+      });
+      const data = await response.json();
+      if (data.status === 'ok') {
+        console.log(`✅ [LOCATION AUDIO SYNC] Server updated Panchangam audio for location ${cityObj.name} in ${currentLangObj.name}`);
+      }
+    } catch (err) {
+      console.error("City sync error:", err);
+    } finally {
+      setIsSyncingLanguage(false);
+    }
   };
 
-  // Handle Devotee PIR Motion Sensor Trigger (Strict Single Execution)
+  // Handle PIR Motion Sensor Trigger (Hardware / Web Button Signal)
   const handleTriggerMotion = () => {
-    // DISCARD IMMEDIATELY IF AUDIO IS ALREADY PLAYING!
-    if (idolState.pirState === 'ANNOUNCING' || ttsEngine.isSpeaking) {
-      console.log("🚫 Motion trigger generated DURING audio playback — DISCARDED completely.");
-      return;
-    }
-
     const currentTime = new Date().toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
     const currentLangObj = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
     const currentCityObj = CITIES.find(c => c.id === idolState.activeCity) || CITIES[0];
 
-    setLastMotionBanner(`⚡ MOTION DETECTED AT ${currentTime}! Playing ${currentCityObj.name} Panchangam in ${currentLangObj.name}...`);
-
-    // 1. Lock state to ANNOUNCING
+    // 1. Set Motion Active in System State
     setIdolState(prev => ({
       ...prev,
-      pirState: 'ANNOUNCING',
-      totalTriggersToday: prev.totalTriggersToday + 1,
-      lastTriggerTime: currentTime
+      pirState: 'MOTION DETECTED',
+      lastMotionTime: currentTime,
+      motionCount: prev.motionCount + 1
     }));
+
+    // Show Visual Alert Banner
+    setLastMotionBanner({
+      time: currentTime,
+      city: currentCityObj.name,
+      lang: currentLangObj.name
+    });
 
     // 2. Add Motion Event Log
     const newLog = {
@@ -257,13 +208,12 @@ export default function App() {
     };
     setLogs(prev => [newLog, ...prev]);
 
-    // 3. Play Audio Speech via Browser Speech Engine
+    // 3. Play Audio Speech via Server MP3 Audio Player in UPDATED ACTIVE LANGUAGE & LOCATION
     const panchang = getDailyPanchangam(idolState.activeCity, currentDate);
     const audioScriptText = generateAudioScript(currentLangObj.id, panchang);
 
     ttsEngine.speak(audioScriptText, currentLangObj.code, {
       onEnd: () => {
-        // Clear audio state only after speech is 100% finished
         setTimeout(() => {
           setIdolState(prev => ({ ...prev, pirState: 'IDLE' }));
           setLastMotionBanner(null);
@@ -284,70 +234,53 @@ export default function App() {
   }
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
-      
-      {/* Top Banner: Enable Speaker Audio */}
-      {!audioUnlocked ? (
-        <div style={{ background: 'linear-gradient(90deg, #ea580c, #f59e0b)', color: '#ffffff', padding: '12px 20px', textAlign: 'center', fontWeight: 600, fontSize: '0.92rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '14px', flexWrap: 'wrap', boxShadow: '0 4px 15px rgba(234, 88, 12, 0.4)' }}>
-          <AlertCircle size={20} />
-          <span>Click button to enable browser speaker audio for ESP32 motion triggers:</span>
-          <button 
-            onClick={handleUnlockAudio}
-            style={{ background: '#ffffff', color: '#ea580c', border: 'none', padding: '8px 20px', borderRadius: '8px', fontWeight: 800, cursor: 'pointer', fontSize: '0.92rem', display: 'flex', alignItems: 'center', gap: '8px', boxShadow: '0 2px 10px rgba(0,0,0,0.2)' }}
-          >
-            <Volume2 size={18} /> 🔊 Enable Speaker Audio Now
-          </button>
-        </div>
-      ) : (
-        <div style={{ background: idolState.pirState === 'ANNOUNCING' ? 'linear-gradient(90deg, #ea580c, #f59e0b)' : 'linear-gradient(90deg, rgba(16, 185, 129, 0.95), rgba(5, 150, 105, 0.95))', color: '#ffffff', padding: '10px 20px', textAlign: 'center', fontWeight: 600, fontSize: '0.9rem', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '12px', transition: 'all 0.3s ease' }}>
-          {idolState.pirState === 'ANNOUNCING' ? <Zap size={18} color="#fff" /> : <CheckCircle2 size={18} />}
-          <span>{lastMotionBanner || '🟢 Listening for ESP32 PIR Motion Sensor... (Triggers during speech discarded)'}</span>
-          <button 
-            onClick={handleTriggerMotion}
-            disabled={idolState.pirState === 'ANNOUNCING'}
-            style={{ background: idolState.pirState === 'ANNOUNCING' ? 'rgba(255,255,255,0.1)' : 'rgba(255,255,255,0.2)', color: '#fff', border: '1px solid #fff', padding: '4px 12px', borderRadius: '6px', cursor: idolState.pirState === 'ANNOUNCING' ? 'not-allowed' : 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-          >
-            {idolState.pirState === 'ANNOUNCING' ? '🔊 Announcing Audio (Busy)...' : '⚡ Test Speech Now'}
-          </button>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: '#0a0d14' }}>
+      {/* Top Bar Navigation */}
+      <Navbar 
+        idolState={idolState} 
+        activeTab={activeTab} 
+        onSelectTab={setActiveTab} 
+        onLogout={handleLogout}
+        username={authUser}
+      />
+
+      {/* Global Real-Time Motion Notification Banner */}
+      {lastMotionBanner && (
+        <div style={{
+          background: 'linear-gradient(90deg, #f59e0b, #d97706)',
+          color: '#000000',
+          padding: '10px 24px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          fontWeight: 700,
+          boxShadow: '0 4px 20px rgba(245, 158, 11, 0.4)',
+          animation: 'pulse 1.5s infinite'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <span style={{ fontSize: '1.2rem' }}>⚡</span>
+            <span>HUMAN MOTION DETECTED BY ESP32 PIR SENSOR at {lastMotionBanner.time}! Playing {lastMotionBanner.city} Panchangam in {lastMotionBanner.lang} Voice Speaker Audio...</span>
+          </div>
+          <span style={{ fontSize: '0.85rem', background: '#000', color: '#fff', padding: '4px 10px', borderRadius: '12px' }}>LIVE SENSOR</span>
         </div>
       )}
 
-      {/* Header Navigation */}
-      <Navbar 
-        activeTab={activeTab} 
-        setActiveTab={setActiveTab} 
-        idolState={idolState}
-        onTriggerMotion={handleTriggerMotion}
-        authUser={authUser}
-        onLogout={handleLogout}
-      />
-
-      {/* Main Container */}
-      <main style={{ maxWidth: '1280px', width: '100%', margin: '0 auto', padding: '24px 20px 60px 20px', flex: 1 }}>
-        {activeTab === 'wificonnect' && (
-          <WifiProvisioning 
-            idolState={idolState} 
-            audioUnlocked={audioUnlocked}
-            onUnlockAudio={handleUnlockAudio}
-            onUpdateWifiCredentials={handleUpdateWifiCredentials}
-          />
-        )}
-
+      {/* Main Admin Workspace Area */}
+      <main style={{ flex: 1, padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
         {activeTab === 'dashboard' && (
           <DashboardOverview 
             idolState={idolState} 
-            currentDate={currentDate}
             onNavigateToTab={setActiveTab} 
-            onTriggerMotion={handleTriggerMotion} 
+            onTriggerMotion={handleTriggerMotion}
           />
         )}
 
         {activeTab === 'language' && (
           <LanguageSelector 
             idolState={idolState} 
-            currentDate={currentDate}
             onConfirmLanguage={handleConfirmLanguage}
             onConfirmCity={handleConfirmCity}
+            isSyncing={isSyncingLanguage}
           />
         )}
 
@@ -358,39 +291,40 @@ export default function App() {
           />
         )}
 
-        {activeTab === 'simulator' && (
-          <HardwareSimulator 
-            idolState={idolState} 
-            currentDate={currentDate}
-            onTriggerMotion={handleTriggerMotion} 
-          />
-        )}
-
-        {activeTab === 'firmware' && (
-          <FirmwareExporter 
-            idolState={idolState} 
+        {activeTab === 'wifi' && (
+          <WifiProvisioning 
+            idolState={idolState}
+            onUpdateWifi={(ssid) => setIdolState(prev => ({ ...prev, wifiSsid: ssid, wifiStatus: 'CONNECTED' }))}
           />
         )}
 
         {activeTab === 'logs' && (
           <LogsViewer 
             logs={logs} 
+            onClearLogs={() => setLogs([])}
           />
         )}
       </main>
 
-      {/* Footer */}
-      <footer style={{ borderTop: '1px solid rgba(245, 158, 11, 0.15)', background: 'rgba(9, 13, 22, 0.95)', padding: '20px', textAlign: 'center', fontSize: '0.85rem', color: '#6b7280' }}>
-        <div style={{ maxWidth: '1280px', margin: '0 auto', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '10px' }}>
-          <div>
-            🛕 <strong>Smart Idol IoT System & Admin Dashboard</strong> • Zero-Queue Motion Discard Architecture
-          </div>
-          <div>
-            Trigger Guard: <span style={{ color: '#34d399', fontWeight: 600 }}>Active (Discards triggers during speech)</span>
-          </div>
+      {/* Footer System Diagnostics Bar */}
+      <footer style={{
+        borderTop: '1px solid rgba(255, 255, 255, 0.08)',
+        padding: '12px 24px',
+        fontSize: '0.8rem',
+        color: '#6b7280',
+        display: 'flex',
+        justifyContent: 'space-between',
+        alignItems: 'center',
+        background: '#070a0f'
+      }}>
+        <div>Smart Idol Hardware Controller v2.5 | Multi-Language Ephemeris Engine</div>
+        <div style={{ display: 'flex', gap: '16px' }}>
+          <span>API: Port 3001 (Active)</span>
+          <span>Wi-Fi: {idolState.wifiSsid}</span>
+          <span>Active Location: {idolState.activeCity.toUpperCase()}</span>
+          <span>Active Lang: {idolState.activeLanguage.toUpperCase()}</span>
         </div>
       </footer>
-
     </div>
   );
 }

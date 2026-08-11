@@ -1,24 +1,26 @@
 import React, { useState } from 'react';
 import { 
-  Sparkles, Volume2, Play, Square, Calendar, Sun, Moon, Clock, 
-  BookOpen, Globe, Award, MapPin 
+  Sparkles, Volume2, Square, Calendar, MapPin, Download, RefreshCw, Globe 
 } from 'lucide-react';
-import { getDailyPanchangam, generateAudioScript, LANGUAGES, CITIES } from '../utils/panchangamEngine';
+import { getDailyPanchangam, generateAudioScript, getLocalizedPanchangFields, LANGUAGES, CITIES } from '../utils/panchangamEngine';
 import { ttsEngine } from '../utils/ttsEngine';
 
 export default function PanchangamView({ idolState, currentDate }) {
   const [selectedCity, setSelectedCity] = useState(idolState.activeCity || 'hyderabad');
+  const [previewLang, setPreviewLang] = useState(idolState.activeLanguage || 'telugu');
   const [targetDateStr, setTargetDateStr] = useState(
-    currentDate ? currentDate.toISOString().slice(0, 10) : '2026-07-28'
+    currentDate ? currentDate.toISOString().slice(0, 10) : '2026-08-06'
   );
 
   const selectedDate = new Date(targetDateStr);
   const panchang = getDailyPanchangam(selectedCity, selectedDate);
-  const [previewLang, setPreviewLang] = useState(idolState.activeLanguage);
+  const localizedPanchang = getLocalizedPanchangFields(panchang, previewLang);
+  
   const [isPlaying, setIsPlaying] = useState(false);
-  const [speechRate, setSpeechRate] = useState(0.95);
+  const [isDownloading, setIsDownloading] = useState(false);
 
   const langObj = LANGUAGES.find(l => l.id === previewLang) || LANGUAGES[0];
+  const cityObj = CITIES.find(c => c.id === selectedCity) || CITIES[0];
   const audioScript = generateAudioScript(previewLang, panchang);
 
   const handleToggleSpeech = () => {
@@ -28,10 +30,49 @@ export default function PanchangamView({ idolState, currentDate }) {
     } else {
       setIsPlaying(true);
       ttsEngine.speak(audioScript, langObj.code, {
-        rate: speechRate,
         onEnd: () => setIsPlaying(false),
         onError: () => setIsPlaying(false)
       });
+    }
+  };
+
+  const handleDownloadAudio = async () => {
+    setIsDownloading(true);
+
+    try {
+      const hostname = window.location.hostname || 'localhost';
+      const serverBaseUrl = `http://${hostname}:3001`;
+
+      const genRes = await fetch(`${serverBaseUrl}/generate-audio`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          text: audioScript, 
+          lang: langObj.code.split('-')[0],
+          city: selectedCity
+        })
+      });
+      const data = await genRes.json();
+
+      if (data.status === 'ok') {
+        const audioRes = await fetch(`${serverBaseUrl}/audio/latest.mp3?t=${Date.now()}`);
+        const blob = await audioRes.blob();
+
+        const blobUrl = window.URL.createObjectURL(blob);
+        const link = document.createElement('a');
+        link.href = blobUrl;
+        link.download = `Panchangam_${cityObj.name}_${langObj.name}.mp3`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        window.URL.revokeObjectURL(blobUrl);
+      }
+    } catch (err) {
+      console.error("Audio download error:", err);
+      const hostname = window.location.hostname || 'localhost';
+      window.open(`http://${hostname}:3001/audio/download`, '_blank');
+    } finally {
+      setIsDownloading(false);
     }
   };
 
@@ -43,18 +84,35 @@ export default function PanchangamView({ idolState, currentDate }) {
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexWrap: 'wrap', gap: '16px' }}>
           <div>
             <div className="badge-emerald" style={{ marginBottom: '8px' }}>
-              <MapPin size={14} /> {panchang.location}
+              <MapPin size={14} /> {cityObj.name}, {cityObj.state}
             </div>
-            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0 }}>
+            <h2 style={{ fontSize: '1.75rem', fontWeight: 700, margin: 0, color: '#ffffff' }}>
               {panchang.dateFormatted}
             </h2>
             <p style={{ color: '#fbbf24', marginTop: '4px', fontSize: '1rem', fontWeight: 600 }}>
-              {panchang.samvat} • {panchang.paksha}
+              Drik Ephemeris Panchangam for {cityObj.name}
             </p>
           </div>
 
-          {/* Speaker Control Card */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          {/* Speaker & Download Controls */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px', flexWrap: 'wrap' }}>
+            <button 
+              onClick={handleDownloadAudio}
+              disabled={isDownloading}
+              className="btn-primary"
+              style={{ background: 'linear-gradient(135deg, #10b981, #059669)', border: 'none', padding: '12px 20px', fontSize: '0.95rem', display: 'flex', alignItems: 'center', gap: '8px', cursor: isDownloading ? 'wait' : 'pointer' }}
+            >
+              {isDownloading ? (
+                <>
+                  <RefreshCw size={16} className="pulse-motion" /> Generating & Downloading...
+                </>
+              ) : (
+                <>
+                  <Download size={16} /> Download Audio ({langObj.flag} {langObj.name})
+                </>
+              )}
+            </button>
+
             <button 
               className="btn-primary" 
               onClick={handleToggleSpeech}
@@ -67,45 +125,44 @@ export default function PanchangamView({ idolState, currentDate }) {
         </div>
       </div>
 
-      {/* Date Picker & Location Controls */}
+      {/* Date Picker, Location, & Language Controls Bar */}
       <div className="glass-card" style={{ padding: '16px 20px', display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: '16px' }}>
         
         {/* Interactive Date Picker */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <Calendar size={18} color="#fbbf24" />
-          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>SELECT DATE TO INSPECT:</span>
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>CALENDAR DATE:</span>
           <input 
             type="date" 
             value={targetDateStr}
             onChange={(e) => setTargetDateStr(e.target.value)}
             style={{
-              background: 'rgba(9, 13, 22, 0.9)',
+              background: '#090d16',
               border: '1px solid rgba(245, 158, 11, 0.5)',
-              color: '#fbbf24',
-              padding: '6px 14px',
+              color: '#ffffff',
+              padding: '8px 14px',
               borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 700,
+              fontSize: '0.9rem',
               outline: 'none',
               cursor: 'pointer'
             }}
           />
         </div>
 
-        {/* City Selector */}
+        {/* Location Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
           <MapPin size={18} color="#34d399" />
-          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>LOCATION:</span>
-          <select 
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>CITY LOCATION:</span>
+          <select
             value={selectedCity}
             onChange={(e) => setSelectedCity(e.target.value)}
             style={{
-              background: 'rgba(9, 13, 22, 0.9)',
-              border: '1px solid rgba(16, 185, 129, 0.4)',
+              background: '#090d16',
+              border: '1px solid rgba(52, 211, 153, 0.5)',
               color: '#34d399',
-              padding: '6px 14px',
+              padding: '8px 14px',
               borderRadius: '8px',
-              fontSize: '0.85rem',
+              fontSize: '0.9rem',
               fontWeight: 600,
               outline: 'none',
               cursor: 'pointer'
@@ -119,110 +176,92 @@ export default function PanchangamView({ idolState, currentDate }) {
           </select>
         </div>
 
-        {/* Language Selector */}
+        {/* Language Selector Dropdown */}
         <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Globe size={18} color="#818cf8" />
-          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>LANGUAGE:</span>
-          <select 
+          <Globe size={18} color="#60a5fa" />
+          <span style={{ fontSize: '0.85rem', color: '#9ca3af', fontWeight: 600 }}>PANCHANAGAM LANGUAGE:</span>
+          <select
             value={previewLang}
-            onChange={(e) => {
-              setPreviewLang(e.target.value);
-              if (isPlaying) ttsEngine.stop();
-            }}
+            onChange={(e) => setPreviewLang(e.target.value)}
             style={{
-              background: 'rgba(9, 13, 22, 0.9)',
-              border: '1px solid rgba(99, 102, 241, 0.4)',
-              color: '#ffffff',
-              padding: '6px 14px',
+              background: '#090d16',
+              border: '1px solid rgba(96, 165, 250, 0.5)',
+              color: '#60a5fa',
+              padding: '8px 14px',
               borderRadius: '8px',
-              fontSize: '0.85rem',
-              fontWeight: 600,
+              fontSize: '0.9rem',
+              fontWeight: 700,
               outline: 'none',
               cursor: 'pointer'
             }}
           >
             {LANGUAGES.map((l) => (
               <option key={l.id} value={l.id}>
-                {l.flag} {l.name} ({l.script})
+                {l.flag} {l.name} ({l.nativeName})
               </option>
             ))}
           </select>
         </div>
+
       </div>
 
-      {/* Generated Devotional Audio Script Box */}
-      <div className="glass-card" style={{ padding: '24px', background: 'rgba(234, 88, 12, 0.06)', border: '1px dashed rgba(245, 158, 11, 0.4)' }}>
-        <h4 style={{ fontSize: '0.85rem', color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '8px', display: 'flex', alignItems: 'center', gap: '8px' }}>
-          <BookOpen size={16} /> Devotional Audio Speech Script ({langObj.name} • {panchang.dateFormatted})
-        </h4>
-        <p style={{ fontSize: '1.2rem', lineHeight: '1.7', color: '#ffffff', fontWeight: 500, fontFamily: 'serif' }}>
+      {/* Spoken Text Script Card */}
+      <div className="glass-card" style={{ padding: '20px', background: 'rgba(17, 24, 39, 0.7)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+        <div style={{ fontSize: '0.8rem', color: '#fbbf24', textTransform: 'uppercase', fontWeight: 700, marginBottom: '6px', display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <Sparkles size={14} /> TODAY'S SPOKEN PANCHANGAM SCRIPT ({langObj.flag} {langObj.name})
+        </div>
+        <p style={{ fontSize: '1.08rem', color: '#ffffff', lineHeight: '1.6', margin: 0, fontWeight: 500, fontFamily: 'serif' }}>
           "{audioScript}"
         </p>
       </div>
 
-      {/* Panchang 5 Limbs (Angas) Details Grid */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))', gap: '16px' }}>
+      {/* Grid of 5 Principal Elements (Pancha-Angas) */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
         
-        {/* Tithi */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>TITHI (LUNAR DAY)</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#fbbf24', marginTop: '6px' }}>{panchang.tithi}</div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '4px' }}>Phase: {panchang.paksha}</div>
-        </div>
-
-        {/* Nakshatra */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>NAKSHATRA (STAR)</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>{panchang.nakshatra}</div>
-          <div style={{ fontSize: '0.8rem', color: '#34d399', marginTop: '4px' }}>Auspicious Lunar Mansion</div>
-        </div>
-
-        {/* Yoga */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>YOGA</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>{panchang.yoga}</div>
-          <div style={{ fontSize: '0.8rem', color: '#818cf8', marginTop: '4px' }}>Luni-Solar Harmony</div>
-        </div>
-
-        {/* Karana */}
-        <div className="glass-card" style={{ padding: '20px' }}>
-          <div style={{ fontSize: '0.75rem', color: '#9ca3af', fontWeight: 600, textTransform: 'uppercase' }}>KARANA</div>
-          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>{panchang.karana}</div>
-          <div style={{ fontSize: '0.8rem', color: '#9ca3af', marginTop: '4px' }}>Half-Tithi Period</div>
-        </div>
-
-      </div>
-
-      {/* Timings Grid (Rahu Kalam, Yamagandam, Sunrise, Abhijit) */}
-      <div className="glass-card" style={{ padding: '24px' }}>
-        <h3 style={{ fontSize: '1.15rem', fontWeight: 700, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <Clock size={20} color="#fbbf24" />
-          Location Timings & Muhurthams ({panchang.cityName})
-        </h3>
-
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: '16px' }}>
-          
-          <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(239, 68, 68, 0.1)', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#fca5a5', fontWeight: 700 }}>RAHU KALAM (Avoid new tasks)</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#ef4444', marginTop: '4px' }}>{panchang.rahuKalam}</div>
+        {/* Element 1: Tithi */}
+        <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid #f59e0b' }}>
+          <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>1. TITHI (LUNAR DAY)</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+            {localizedPanchang.tithi}
           </div>
-
-          <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(245, 158, 11, 0.1)', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#fde68a', fontWeight: 700 }}>YAMAGANDAM</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#f59e0b', marginTop: '4px' }}>{panchang.yamagandam}</div>
+          <div style={{ fontSize: '0.8rem', color: '#f59e0b', marginTop: '4px' }}>
+            Lunar Phase
           </div>
-
-          <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(16, 185, 129, 0.1)', border: '1px solid rgba(16, 185, 129, 0.3)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#a7f3d0', fontWeight: 700 }}>ABHIJIT MUHURTHAM (Highly Auspicious)</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#34d399', marginTop: '4px' }}>{panchang.abhijitMuhurtham}</div>
-          </div>
-
-          <div style={{ padding: '14px', borderRadius: '10px', background: 'rgba(99, 102, 241, 0.1)', border: '1px solid rgba(99, 102, 241, 0.3)' }}>
-            <div style={{ fontSize: '0.75rem', color: '#c7d2fe', fontWeight: 700 }}>SUNRISE / SUNSET</div>
-            <div style={{ fontSize: '1.1rem', fontWeight: 700, color: '#818cf8', marginTop: '4px' }}>{panchang.sunrise} / {panchang.sunset}</div>
-          </div>
-
         </div>
+
+        {/* Element 2: Nakshatra */}
+        <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid #10b981' }}>
+          <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>2. NAKSHATRA (STAR)</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+            {localizedPanchang.nakshatra}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#34d399', marginTop: '4px' }}>
+            Lunar Mansion
+          </div>
+        </div>
+
+        {/* Element 3: Yoga */}
+        <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid #6366f1' }}>
+          <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>3. YOGA (LUNI-SOLAR ASPECT)</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+            {localizedPanchang.yoga}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#818cf8', marginTop: '4px' }}>
+            Auspicious Energy
+          </div>
+        </div>
+
+        {/* Element 4: Karana */}
+        <div className="glass-card" style={{ padding: '20px', borderLeft: '4px solid #ec4899' }}>
+          <div style={{ fontSize: '0.75rem', color: '#9ca3af', textTransform: 'uppercase', fontWeight: 600 }}>4. KARANA (HALF-TITHI)</div>
+          <div style={{ fontSize: '1.25rem', fontWeight: 700, color: '#ffffff', marginTop: '6px' }}>
+            {localizedPanchang.karana}
+          </div>
+          <div style={{ fontSize: '0.8rem', color: '#f472b6', marginTop: '4px' }}>
+            Action Period
+          </div>
+        </div>
+
       </div>
 
     </div>
