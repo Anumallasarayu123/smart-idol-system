@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include "Audio.h" // ESP32-AudioI2S library by schreibfaul1 v3.4.x
+#include "Audio.h" // ESP32-AudioI2S library by schreibfaul1 v3.4.7
 
 // ================== Wi-Fi Configuration ==================
 const char* ssid     = "Neonflake";
@@ -29,7 +29,7 @@ unsigned long lastPlayTime = 0;
 // =====================================================
 void triggerAudioPlayback() {
   Serial.println("\n⚡ [MOTION DETECTED] Human wave sensed!");
-  Serial.printf("🔊 Connecting to: %s\n", AUDIO_URL);
+  Serial.printf("🔊 Streaming from: %s\n", AUDIO_URL);
 
   digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker amp
   digitalWrite(LED_PIN, HIGH); // Turn Blue LED ON
@@ -71,14 +71,14 @@ void setup() {
   Serial.print("📡 ESP32 Local IP: ");
   Serial.println(WiFi.localIP());
 
-  // Initialize ESP32-AudioI2S Pins & Callbacks
+  // Initialize ESP32-AudioI2S Pins
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(20); // 0 to 21 volume scale
 
   // Register Audio Log Callback for Detailed Diagnostics
   Audio::audio_info_callback = [](Audio::msg_t m) {
     if (m.msg || m.s) {
-      Serial.printf("🔊 [AUDIO] %s %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
+      Serial.printf("🔊 [AUDIO LOG] %s %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
     }
   };
 
@@ -89,12 +89,10 @@ void setup() {
 }
 
 // =====================================================
-// Main Loop
+// Main Loop (In v3.4.7, AudioTask runs automatically in background)
 // =====================================================
 void loop() {
-  audio.loop(); // Must be called continuously in loop()
-
-  // Detect when audio finishes playing
+  // Check if audio finished playing
   if (isAudioPlaying && !audio.isRunning()) {
     Serial.println("✅ Audio playback finished!");
     digitalWrite(SD_PIN, LOW);  // Mute MAX98357A speaker amp
@@ -104,9 +102,11 @@ void loop() {
 
   // Detect PIR Motion Trigger
   if (!isAudioPlaying && digitalRead(PIR_PIN) == HIGH) {
-    if (millis() - lastPlayTime > 15000) { // 15s cooldown between plays
+    if (millis() - lastPlayTime > 15000) { // 15s cooldown
       triggerAudioPlayback();
       lastPlayTime = millis();
     }
   }
+
+  delay(50); // Small loop delay
 }
