@@ -3,6 +3,7 @@ import {
   Wifi, ShieldCheck, Lock, RefreshCw, CheckCircle2, AlertCircle, 
   Signal, Cpu, ArrowRight, Key, Volume2, Sparkles 
 } from 'lucide-react';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 export default function WifiProvisioning({ idolState, audioUnlocked, onUnlockAudio, onUpdateWifiCredentials }) {
   const [isScanning, setIsScanning] = useState(false);
@@ -22,8 +23,7 @@ export default function WifiProvisioning({ idolState, audioUnlocked, onUnlockAud
     setIsScanning(true);
     setConnectionStatus(null);
 
-    const hostname = window.location.hostname || 'localhost';
-    fetch(`http://${hostname}:3001/scan-wifi`)
+    fetch(`${getApiBaseUrl()}/scan-wifi`)
       .then(res => res.json())
       .then(data => {
         if (data && data.networks && Array.isArray(data.networks)) {
@@ -63,8 +63,7 @@ export default function WifiProvisioning({ idolState, audioUnlocked, onUnlockAud
     setIsConnecting(true);
     setConnectionStatus(null);
 
-    const hostname = window.location.hostname || 'localhost';
-    fetch(`http://${hostname}:3001/connect-wifi`, {
+    fetch(`${getApiBaseUrl()}/connect-wifi`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ssid: selectedSsid.trim(), password: wifiPassword.trim() })

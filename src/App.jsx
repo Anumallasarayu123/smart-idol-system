@@ -9,6 +9,7 @@ import LoginPage from './components/LoginPage';
 import { INITIAL_IDOL_STATE } from './mockData/idolState';
 import { LANGUAGES, CITIES, generateAudioScript, getDailyPanchangam } from './utils/panchangamEngine';
 import { ttsEngine } from './utils/ttsEngine';
+import { getApiBaseUrl } from './utils/apiConfig';
 
 export default function App() {
   // Authentication State
@@ -52,9 +53,8 @@ export default function App() {
 
   // Poll Express Server for Real ESP32 Hardware Motion Signals
   useEffect(() => {
-    const hostname = window.location.hostname || 'localhost';
     const pollInterval = setInterval(() => {
-      fetch(`http://${hostname}:3001/motion-status`)
+      fetch(`${getApiBaseUrl()}/motion-status`)
         .then(res => res.json())
         .then(data => {
           if (data.motion) {
@@ -107,10 +107,9 @@ export default function App() {
     // 2. AWAIT SERVER AUDIO GENERATION (MP3 & WAV) FOR WEBPAGE AND ESP32 SPEAKER
     const panchang = getDailyPanchangam(idolState.activeCity, currentDate);
     const audioScriptText = generateAudioScript(langObj.id, panchang);
-    const hostname = window.location.hostname || 'localhost';
 
     try {
-      const response = await fetch(`http://${hostname}:3001/generate-audio`, {
+      const response = await fetch(`${getApiBaseUrl()}/generate-audio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -154,10 +153,9 @@ export default function App() {
 
     const panchang = getDailyPanchangam(newCityId, currentDate);
     const audioScriptText = generateAudioScript(currentLangObj.id, panchang);
-    const hostname = window.location.hostname || 'localhost';
 
     try {
-      const response = await fetch(`http://${hostname}:3001/generate-audio`, {
+      const response = await fetch(`${getApiBaseUrl()}/generate-audio`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 

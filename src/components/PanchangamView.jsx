@@ -4,6 +4,7 @@ import {
 } from 'lucide-react';
 import { getDailyPanchangam, generateAudioScript, getLocalizedPanchangFields, LANGUAGES, CITIES } from '../utils/panchangamEngine';
 import { ttsEngine } from '../utils/ttsEngine';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 export default function PanchangamView({ idolState, currentDate }) {
   const [selectedCity, setSelectedCity] = useState(idolState.activeCity || 'hyderabad');
@@ -40,8 +41,7 @@ export default function PanchangamView({ idolState, currentDate }) {
     setIsDownloading(true);
 
     try {
-      const hostname = window.location.hostname || 'localhost';
-      const serverBaseUrl = `http://${hostname}:3001`;
+      const serverBaseUrl = getApiBaseUrl();
 
       const genRes = await fetch(`${serverBaseUrl}/generate-audio`, {
         method: 'POST',

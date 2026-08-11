@@ -5,6 +5,7 @@ import {
 } from 'lucide-react';
 import { LANGUAGES, CITIES, getDailyPanchangam, generateAudioScript } from '../utils/panchangamEngine';
 import { ttsEngine } from '../utils/ttsEngine';
+import { getApiBaseUrl } from '../utils/apiConfig';
 
 export default function DashboardOverview({ idolState, onNavigateToTab, onTriggerMotion }) {
   const [isDownloading, setIsDownloading] = useState(false);
@@ -23,8 +24,7 @@ export default function DashboardOverview({ idolState, onNavigateToTab, onTrigge
     setServerMessage(null);
 
     try {
-      const hostname = window.location.hostname || 'localhost';
-      const serverBaseUrl = `http://${hostname}:3001`;
+      const serverBaseUrl = getApiBaseUrl();
 
       const response = await fetch(`${serverBaseUrl}/generate-audio`, {
         method: 'POST',
@@ -45,7 +45,7 @@ export default function DashboardOverview({ idolState, onNavigateToTab, onTrigge
       }
     } catch (err) {
       console.error("Server update error:", err);
-      setServerMessage("⚠️ Server connection error. Make sure server is running on Port 3001.");
+      setServerMessage("⚠️ Server connection error. Make sure server is running.");
     } finally {
       setIsUpdatingServer(false);
     }
@@ -55,8 +55,7 @@ export default function DashboardOverview({ idolState, onNavigateToTab, onTrigge
     setIsDownloading(true);
 
     try {
-      const hostname = window.location.hostname || 'localhost';
-      const serverBaseUrl = `http://${hostname}:3001`;
+      const serverBaseUrl = getApiBaseUrl();
 
       const genRes = await fetch(`${serverBaseUrl}/generate-audio`, {
         method: 'POST',
