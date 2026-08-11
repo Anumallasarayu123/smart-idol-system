@@ -1,5 +1,5 @@
 #include <WiFi.h>
-#include "Audio.h" // ESP32-AudioI2S library by schreibfaul1 v3.3.11 (Fully compatible with ESP32 Core 3.2.0)
+#include "Audio.h" // ESP32-AudioI2S library by schreibfaul1 v3.4.x
 
 // ================== Wi-Fi Configuration ==================
 const char* ssid     = "Neonflake";
@@ -25,14 +25,14 @@ bool isAudioPlaying = false;
 unsigned long lastPlayTime = 0;
 
 // =====================================================
-// Play MP3 File From Server (ESP32-AudioI2S Core 3.x)
+// Trigger Audio Playback From Server
 // =====================================================
 void triggerAudioPlayback() {
   Serial.println("\n⚡ [MOTION DETECTED] Human wave sensed!");
-  Serial.printf("🔊 Streaming from: %s\n", AUDIO_URL);
+  Serial.printf("🔊 Connecting to: %s\n", AUDIO_URL);
 
-  digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker
-  digitalWrite(LED_PIN, HIGH); // Turn LED ON
+  digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker amp
+  digitalWrite(LED_PIN, HIGH); // Turn Blue LED ON
 
   if (WiFi.status() != WL_CONNECTED) {
     WiFi.begin(ssid, password);
@@ -41,18 +41,6 @@ void triggerAudioPlayback() {
 
   isAudioPlaying = true;
   audio.connecttohost(AUDIO_URL);
-}
-
-// Optional Audio Callbacks
-void audio_info(const char *info){
-  Serial.print("info        "); Serial.println(info);
-}
-
-void audio_eof_mp3(const char *info){
-  Serial.println("✅ Audio finished playing!");
-  digitalWrite(SD_PIN, LOW);  // Mute MAX98357A speaker
-  digitalWrite(LED_PIN, LOW); // Turn LED OFF
-  isAudioPlaying = false;
 }
 
 // =====================================================
@@ -65,7 +53,8 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(SD_PIN, OUTPUT);
 
-  digitalWrite(SD_PIN, LOW); // Keep amp muted
+  digitalWrite(SD_PIN, LOW);  // Keep amp muted initially
+  digitalWrite(LED_PIN, LOW); // LED Off
 
   Serial.println("📶 Connecting to Wi-Fi...");
   WiFi.mode(WIFI_STA);
@@ -76,20 +65,27 @@ void setup() {
     Serial.print(".");
   }
 
-  WiFi.setSleep(false);
+  WiFi.setSleep(false); // Max Wi-Fi performance
 
   Serial.println("\n✅ Wi-Fi Connected!");
-  Serial.print("📡 ESP32 IP: ");
+  Serial.print("📡 ESP32 Local IP: ");
   Serial.println(WiFi.localIP());
 
-  // Initialize ESP32-AudioI2S Pins
+  // Initialize ESP32-AudioI2S Pins & Callbacks
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(20); // 0 to 21 volume scale
+
+  // Register Audio Log Callback for Detailed Diagnostics
+  Audio::audio_info_callback = [](Audio::msg_t m) {
+    if (m.msg || m.s) {
+      Serial.printf("🔊 [AUDIO] %s %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
+    }
+  };
 
   Serial.println("⏳ Warming up PIR sensor for 10 seconds...");
   delay(10000);
 
-  Serial.println("✅ Smart Idol Ready! Wave your hand...");
+  Serial.println("✅ Smart Idol Hardware Ready! Wave your hand...");
 }
 
 // =====================================================
@@ -98,8 +94,17 @@ void setup() {
 void loop() {
   audio.loop(); // Must be called continuously in loop()
 
+  // Detect when audio finishes playing
+  if (isAudioPlaying && !audio.isRunning()) {
+    Serial.println("✅ Audio playback finished!");
+    digitalWrite(SD_PIN, LOW);  // Mute MAX98357A speaker amp
+    digitalWrite(LED_PIN, LOW); // Turn Blue LED OFF
+    isAudioPlaying = false;
+  }
+
+  // Detect PIR Motion Trigger
   if (!isAudioPlaying && digitalRead(PIR_PIN) == HIGH) {
-    if (millis() - lastPlayTime > 15000) { // 15s cooldown
+    if (millis() - lastPlayTime > 15000) { // 15s cooldown between plays
       triggerAudioPlayback();
       lastPlayTime = millis();
     }
