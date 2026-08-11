@@ -571,6 +571,20 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static public folder (for client.html)
+const PUBLIC_DIR = path.join(__dirname, 'public');
+app.use(express.static(PUBLIC_DIR));
+
+// Dedicated simple HTML Client Portal route
+app.get(['/client', '/setup', '/client.html'], (req, res) => {
+  const clientHtmlPath = path.join(PUBLIC_DIR, 'client.html');
+  if (fs.existsSync(clientHtmlPath)) {
+    res.sendFile(clientHtmlPath);
+  } else {
+    res.status(404).send('Client setup page missing');
+  }
+});
+
 // Serve static JS/CSS assets from dist folder
 const DIST_DIR = path.join(__dirname, 'dist');
 app.use(express.static(DIST_DIR));

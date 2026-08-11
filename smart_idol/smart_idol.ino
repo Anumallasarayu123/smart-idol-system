@@ -85,7 +85,7 @@ void setup() {
 void loop() {
   audio.loop(); // Modern background audio decoder loop
 
-  if (!isPlaying && digitalRead(PIR_PIN) == HIGH) {
+  if (!isPlaying && digitalRead(PIR_PIN) == HI+-6GH) {
     if (millis() - lastPlayTime > 15000) { // 15s cooldown between plays
       playAudio();
       lastPlayTime = millis();

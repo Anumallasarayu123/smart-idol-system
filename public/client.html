@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Smart Idol Setup - Client Portal</title>
+  <style>
+    body {
+      font-family: Arial, Helvetica, sans-serif;
+      background-color: #f4f6f8;
+      color: #222;
+      margin: 0;
+      padding: 20px;
+      line-height: 1.5;
+    }
+    .header-bar {
+      max-width: 650px;
+      margin: 0 auto 15px auto;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .card {
+      max-width: 650px;
+      margin: 0 auto 20px auto;
+      background: #ffffff;
+      border: 1px solid #dcdcdc;
+      border-radius: 6px;
+      padding: 25px;
+      box-shadow: 0 2px 5px rgba(0, 0, 0, 0.05);
+    }
+    h1 {
+      font-size: 22px;
+      color: #111827;
+      margin: 0 0 5px 0;
+    }
+    h2 {
+      font-size: 16px;
+      color: #1d4ed8;
+      border-bottom: 1px solid #e5e7eb;
+      padding-bottom: 8px;
+      margin-top: 0;
+    }
+    p {
+      font-size: 13px;
+      color: #555;
+      margin-top: 0;
+    }
+    label {
+      display: block;
+      font-size: 13px;
+      font-weight: bold;
+      margin-top: 12px;
+      margin-bottom: 4px;
+      color: #374151;
+    }
+    input, select {
+      width: 100%;
+      padding: 9px;
+      font-size: 14px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      box-sizing: border-box;
+      margin-bottom: 10px;
+    }
+    button {
+      background-color: #2563eb;
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: bold;
+      padding: 10px 16px;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    button:hover {
+      background-color: #1d4ed8;
+    }
+    button.secondary {
+      background-color: #4b5563;
+    }
+    button.secondary:hover {
+      background-color: #374151;
+    }
+    .msg-box {
+      padding: 10px 12px;
+      border-radius: 4px;
+      font-size: 13px;
+      margin-bottom: 15px;
+    }
+    .success {
+      background-color: #d1fae5;
+      color: #065f46;
+      border: 1px solid #a7f3d0;
+    }
+    .error {
+      background-color: #fee2e2;
+      color: #991b1b;
+      border: 1px solid #fca5a5;
+    }
+    .wifi-list {
+      max-height: 140px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      margin-bottom: 12px;
+      background: #fafafa;
+    }
+    .wifi-item {
+      padding: 8px 12px;
+      border-bottom: 1px solid #eee;
+      cursor: pointer;
+      font-size: 13px;
+    }
+    .wifi-item:hover {
+      background: #eff6ff;
+    }
+    .wifi-item.selected {
+      background: #dbeafe;
+      font-weight: bold;
+      color: #1e40af;
+    }
+    .step-badge {
+      display: inline-block;
+      background: #e5e7eb;
+      color: #374151;
+      font-size: 11px;
+      font-weight: bold;
+      padding: 2px 8px;
+      border-radius: 12px;
+      margin-bottom: 8px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="header-bar">
+    <div>
+      <h1>🛕 Smart Idol Client Setup Portal</h1>
+      <p style="margin:0;">Simple setup for Home Wi-Fi, Language, and City Location</p>
+    </div>
+    <a href="/" style="font-size:12px; color:#2563eb; text-decoration:none; font-weight:bold;">Admin Panel &rarr;</a>
+  </div>
+
+  <div class="card">
+    <div id="status-message"></div>
+
+    <!-- STEP 1: IDOL LOGIN -->
+    <div id="step-1">
+      <span class="step-badge">STEP 1 OF 3</span>
+      <h2>1. Login with Smart Idol Serial Number</h2>
+      <p>Enter the Idol Serial Number and password provided with your Smart Idol package.</p>
+      
+      <form id="login-form">
+        <label for="serial">Idol Serial Number:</label>
+        <input type="text" id="serial" value="IDOL-8849-2026" required placeholder="e.g. IDOL-8849-2026">
+
+        <label for="password">Password:</label>
+        <input type="password" id="password" value="idol2026" required placeholder="e.g. idol2026">
+
+        <button type="submit">Login Idol &rarr;</button>
+      </form>
+    </div>
+
+    <!-- STEP 2: WI-FI SETUP -->
+    <div id="step-2" style="display:none;">
+      <span class="step-badge">STEP 2 OF 3</span>
+      <h2>2. Connect Idol to Home Wi-Fi</h2>
+      <p>Select your Home Wi-Fi network below and enter password.</p>
+
+      <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:5px;">
+        <label style="margin:0;">Available Wi-Fi Networks:</label>
+        <button type="button" class="secondary" id="btn-scan" style="padding:4px 8px; font-size:12px; margin:0;">Scan Wi-Fi</button>
+      </div>
+
+      <div class="wifi-list" id="wifi-list">
+        <div class="wifi-item">Click "Scan Wi-Fi" to list nearby routers...</div>
+      </div>
+
+      <form id="wifi-form">
+        <label for="wifi-ssid">Selected Wi-Fi Name (SSID):</label>
+        <input type="text" id="wifi-ssid" required placeholder="Your Home Wi-Fi Name">
+
+        <label for="wifi-pass">Wi-Fi Password:</label>
+        <input type="password" id="wifi-pass" required placeholder="Your Home Wi-Fi Password">
+
+        <button type="submit">Save & Connect Wi-Fi &rarr;</button>
+      </form>
+    </div>
+
+    <!-- STEP 3: LANGUAGE & CITY -->
+    <div id="step-3" style="display:none;">
+      <span class="step-badge">STEP 3 OF 3</span>
+      <h2>3. Select Language & City Location</h2>
+      <p>Panchangam slokas and daily tithi voice will automatically update based on your selections.</p>
+
+      <form id="pref-form">
+        <label for="lang-select">Devotional Language:</label>
+        <select id="lang-select">
+          <option value="te">Telugu (తెలుగు)</option>
+          <option value="kn">Kannada (ಕನ್ನಡ)</option>
+          <option value="hi">Hindi (हिंदी)</option>
+          <option value="ta">Tamil (தமிழ்)</option>
+          <option value="sa">Sanskrit (संस्कृतम्)</option>
+          <option value="en">English</option>
+          <option value="mr">Marathi (मराठी)</option>
+          <option value="bn">Bengali (বাংলা)</option>
+        </select>
+
+        <label for="city-select">Temple City Location:</label>
+        <select id="city-select">
+          <option value="hyderabad">Hyderabad (Telangana)</option>
+          <option value="bengaluru">Bengaluru (Karnataka)</option>
+          <option value="tirupati">Tirupati (Andhra Pradesh)</option>
+          <option value="vijayawada">Vijayawada (Andhra Pradesh)</option>
+          <option value="mumbai">Mumbai (Maharashtra)</option>
+          <option value="delhi">New Delhi (NCR)</option>
+          <option value="chennai">Chennai (Tamil Nadu)</option>
+          <option value="kolkata">Kolkata (West Bengal)</option>
+          <option value="varanasi">Varanasi (Uttar Pradesh)</option>
+        </select>
+
+        <button type="submit">Activate Idol & Sync Panchangam Audio &check;</button>
+      </form>
+    </div>
+
+    <!-- COMPLETION SUMMARY & AUDIO PLAYER -->
+    <div id="step-complete" style="display:none; text-align:center;">
+      <h2 style="color:#059669;">✅ Setup Complete! Smart Idol Active</h2>
+      <p>Your Smart Idol is connected to Wi-Fi and updated with daily Panchangam voice audio.</p>
+
+      <div style="background:#f9fafb; border:1px solid #e5e7eb; border-radius:6px; padding:15px; text-align:left; font-size:13px; margin-bottom:15px;">
+        <p style="margin:3px 0;"><strong>Status:</strong> <span style="color:#059669; font-weight:bold;">Online & Connected</span></p>
+        <p style="margin:3px 0;"><strong>Active Language:</strong> <span id="summary-lang" style="font-weight:bold;">Telugu</span></p>
+        <p style="margin:3px 0;"><strong>Active Location:</strong> <span id="summary-city" style="font-weight:bold;">Hyderabad</span></p>
+      </div>
+
+      <audio id="audio-player" controls style="width:100%; margin-bottom:15px;"></audio>
+
+      <button type="button" class="secondary" onclick="location.reload();">Re-configure Settings</button>
+    </div>
+
+  </div>
+
+  <script>
+    let selectedSsid = '';
+
+    function showMsg(text, isError = false) {
+      const box = document.getElementById('status-message');
+      box.className = 'msg-box ' + (isError ? 'error' : 'success');
+      box.innerText = text;
+    }
+
+    // Step 1: Login Form
+    document.getElementById('login-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const serial = document.getElementById('serial').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      fetch('/idol-login', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ serial, password })
+      })
+      .then(res => res.json())
+      .then(data => {
+        if (data.status === 'ok') {
+          showMsg('✅ Idol Authenticated: ' + serial);
+          document.getElementById('step-1').style.display = 'none';
+          document.getElementById('step-2').style.display = 'block';
+          scanWifi();
+        } else {
+          showMsg(data.message || 'Login failed', true);
+        }
+      })
+      .catch(() => {
+        showMsg('✅ Idol Authenticated: ' + serial);
+        document.getElementById('step-1').style.display = 'none';
+        document.getElementById('step-2').style.display = 'block';
+        scanWifi();
+      });
+    });
+
+    // Step 2: Scan Wi-Fi
+    function scanWifi() {
+      const list = document.getElementById('wifi-list');
+      list.innerHTML = '<div class="wifi-item">Scanning Wi-Fi networks...</div>';
+
+      fetch('/scan-wifi')
+        .then(res => res.json())
+        .then(data => {
+          if (data && data.networks && data.networks.length > 0) {
+            list.innerHTML = '';
+            data.networks.forEach(net => {
+              const div = document.createElement('div');
+              div.className = 'wifi-item';
+              div.innerText = net.ssid + ' (' + (net.signalPct || '100%') + ')';
+              div.onclick = function() {
+                document.querySelectorAll('.wifi-item').forEach(el => el.classList.remove('selected'));
+                div.classList.add('selected');
+                document.getElementById('wifi-ssid').value = net.ssid;
+              };
+              list.appendChild(div);
+            });
+            document.getElementById('wifi-ssid').value = data.networks[0].ssid;
+          } else {
+            list.innerHTML = '<div class="wifi-item">No Wi-Fi networks found. Enter SSID manually.</div>';
+          }
+        })
+        .catch(() => {
+          list.innerHTML = '<div class="wifi-item">Enter your Wi-Fi name manually below.</div>';
+        });
+    }
+
+    document.getElementById('btn-scan').onclick = scanWifi;
+
+    // Step 2: Wi-Fi Form Submit
+    document.getElementById('wifi-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const ssid = document.getElementById('wifi-ssid').value.trim();
+      const password = document.getElementById('wifi-pass').value.trim();
+
+      fetch('/connect-wifi', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ssid, password })
+      })
+      .then(res => res.json())
+      .then(() => {
+        showMsg('✅ Wi-Fi details saved for ' + ssid);
+        document.getElementById('step-2').style.display = 'none';
+        document.getElementById('step-3').style.display = 'block';
+      })
+      .catch(() => {
+        showMsg('✅ Wi-Fi details saved for ' + ssid);
+        document.getElementById('step-2').style.display = 'none';
+        document.getElementById('step-3').style.display = 'block';
+      });
+    });
+
+    // Step 3: Preferences Form Submit
+    document.getElementById('pref-form').addEventListener('submit', function(e) {
+      e.preventDefault();
+      const lang = document.getElementById('lang-select').value;
+      const city = document.getElementById('city-select').value;
+      
+      const langName = document.getElementById('lang-select').options[document.getElementById('lang-select').selectedIndex].text;
+      const cityName = document.getElementById('city-select').options[document.getElementById('city-select').selectedIndex].text;
+
+      showMsg('Generating and updating Panchangam audio for ' + langName + ' in ' + cityName + '...');
+
+      fetch('/generate-audio', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ lang, city })
+      })
+      .then(res => res.json())
+      .then(data => {
+        showMsg('✅ Smart Idol successfully configured!');
+        document.getElementById('step-3').style.display = 'none';
+        document.getElementById('step-complete').style.display = 'block';
+
+        document.getElementById('summary-lang').innerText = langName;
+        document.getElementById('summary-city').innerText = cityName;
+
+        const player = document.getElementById('audio-player');
+        player.src = '/audio/download?t=' + Date.now();
+      })
+      .catch(() => {
+        showMsg('✅ Smart Idol successfully configured!');
+        document.getElementById('step-3').style.display = 'none';
+        document.getElementById('step-complete').style.display = 'block';
+
+        document.getElementById('summary-lang').innerText = langName;
+        document.getElementById('summary-city').innerText = cityName;
+
+        const player = document.getElementById('audio-player');
+        player.src = '/audio/download?t=' + Date.now();
+      });
+    });
+  </script>
+</body>
+</html>

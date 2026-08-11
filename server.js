@@ -230,7 +230,21 @@ app.get('/motion-status', (req, res) => {
   }
 });
 
-// 7. Serve React Production Build Files
+// 7. Serve Static Public Folder (for client.html)
+const PUBLIC_DIR = path.resolve(__dirname, 'public');
+app.use(express.static(PUBLIC_DIR));
+
+// Dedicated simple HTML Client Portal route
+app.get(['/client', '/setup', '/client.html'], (req, res) => {
+  const clientHtmlPath = path.resolve(PUBLIC_DIR, 'client.html');
+  if (fs.existsSync(clientHtmlPath)) {
+    res.sendFile(clientHtmlPath);
+  } else {
+    res.status(404).send('Client setup page missing');
+  }
+});
+
+// Serve React Production Build Files
 app.use(express.static(DIST_DIR));
 
 // 8. Catch-All Route serving dist/index.html
