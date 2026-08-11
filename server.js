@@ -99,13 +99,15 @@ async function generateMp3Audio(text, lang) {
   return 0;
 }
 
-// 1. POST /update-panchangam-text (Dashboard Text Update)
-app.post('/update-panchangam-text', async (req, res) => {
-  const { text, lang } = req.body;
+// 1. POST & GET /generate-audio & /update-panchangam-text Endpoints
+const handleGenerateAudioESM = async (req, res) => {
+  const text = req.body?.text || req.query?.text;
+  const lang = req.body?.lang || req.query?.lang;
+  
   if (text) currentPanchangamText = text;
   if (lang) currentPanchangamLang = lang.split('-')[0].toLowerCase();
   
-  console.log(`📝 [DASHBOARD UPDATE] New Panchangam Text received in "${currentPanchangamLang}"`);
+  console.log(`📝 [DASHBOARD UPDATE] Panchangam Text received in "${currentPanchangamLang}"`);
   
   try {
     const size = await generateMp3Audio(currentPanchangamText, currentPanchangamLang);
@@ -113,13 +115,17 @@ app.post('/update-panchangam-text', async (req, res) => {
       status: 'ok',
       message: 'Panchangam text updated & audio generated',
       audioUrl: '/audio/latest.mp3',
-      sizeBytes: size
+      wavUrl: '/audio/latest.wav',
+      sizeBytes: size,
+      lang: currentPanchangamLang
     });
   } catch (err) {
     console.error('Error updating panchangam:', err);
     res.status(500).json({ status: 'error', message: 'Failed to generate audio' });
   }
-});
+};
+
+app.all(['/generate-audio', '/update-panchangam-text'], handleGenerateAudioESM);
 
 // 2. GET /scan-wifi (Windows netsh Scanner)
 app.get('/scan-wifi', (req, res) => {

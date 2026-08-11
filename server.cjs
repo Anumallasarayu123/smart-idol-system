@@ -349,9 +349,11 @@ setInterval(() => {
 // 🌺 PRE-GENERATE AUTOMATIC DAILY PANCHANGAM AUDIO ON STARTUP
 downloadAndStorePanchangamAudio(currentPanchangamText, currentPanchangamLang).catch(console.error);
 
-// 1. POST /generate-audio Endpoint (Accepts lang, city, and text updates!)
-app.post('/generate-audio', async (req, res) => {
-  const { text, lang, city } = req.body;
+// 1. POST & GET /generate-audio Endpoints (Accepts lang, city, and text updates via body or query!)
+const handleGenerateAudioReq = async (req, res) => {
+  const text = req.body?.text || req.query?.text;
+  const lang = req.body?.lang || req.query?.lang;
+  const city = req.body?.city || req.query?.city;
   
   if (city) {
     currentCityId = city.toLowerCase();
@@ -385,7 +387,10 @@ app.post('/generate-audio', async (req, res) => {
     console.error('Generation error:', err);
     res.status(500).json({ status: 'error', message: 'Audio download failed' });
   }
-});
+};
+
+app.post('/generate-audio', handleGenerateAudioReq);
+app.get('/generate-audio', handleGenerateAudioReq);
 
 // 2. Direct Browser Download Endpoint
 app.get('/audio/download', async (req, res) => {
