@@ -530,9 +530,13 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static JS/CSS assets from dist folder
+const DIST_DIR = path.join(__dirname, 'dist');
+app.use(express.static(DIST_DIR));
+
 // Safe SPA catch-all route
 app.use((req, res) => {
-  const indexPath = path.join(__dirname, 'dist', 'index.html');
+  const indexPath = path.join(DIST_DIR, 'index.html');
   if (fs.existsSync(indexPath)) {
     res.sendFile(indexPath);
   } else {
