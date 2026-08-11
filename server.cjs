@@ -514,6 +514,29 @@ app.post('/connect-wifi', (req, res) => {
   }
 });
 
+// Client Portal Idol Login Endpoint
+app.post('/idol-login', (req, res) => {
+  const { serial, password } = req.body;
+  if (!serial || !password) {
+    return res.status(400).json({ status: 'error', message: 'Serial number and password required' });
+  }
+
+  const cleanSerial = serial.trim().toUpperCase();
+  const cleanPass = password.trim();
+
+  if (cleanPass === 'idol2026' || cleanPass === 'smartidol' || cleanPass.length >= 4) {
+    console.log(`🔑 [CLIENT IDOL LOGIN SUCCESS] Idol Serial: ${cleanSerial}`);
+    res.json({
+      status: 'ok',
+      message: `Authenticated Smart Idol ${cleanSerial}`,
+      serial: cleanSerial,
+      deviceName: `Smart Ganesha Idol (${cleanSerial})`
+    });
+  } else {
+    res.status(401).json({ status: 'error', message: 'Invalid Idol Password. Default password is idol2026' });
+  }
+});
+
 // ESP32 calls this when motion is detected
 app.post('/motion', (req, res) => {
   const senderIp = req.ip || req.connection.remoteAddress;

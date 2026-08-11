@@ -2,7 +2,7 @@ import React from 'react';
 import { Sparkles, Volume2, ShieldCheck, Activity, Terminal, LogOut, UserCheck, Wifi } from 'lucide-react';
 import { LANGUAGES } from '../utils/panchangamEngine';
 
-export default function Navbar({ activeTab, onSelectTab, idolState, username, onLogout }) {
+export default function Navbar({ activeTab, onSelectTab, idolState, username, onLogout, portalMode, onSwitchMode }) {
   const currentLang = LANGUAGES.find(l => l.id === idolState.activeLanguage) || LANGUAGES[0];
 
   const tabs = [
@@ -86,6 +86,22 @@ export default function Navbar({ activeTab, onSelectTab, idolState, username, on
             <span style={{ width: '8px', height: '8px', borderRadius: '50%', background: '#34d399', display: 'inline-block', boxShadow: '0 0 8px #34d399' }} />
             ESP32 HARDWARE CONNECTED
           </div>
+
+          {/* Portal Mode Switcher Toggle */}
+          <button 
+            onClick={() => onSwitchMode(portalMode === 'admin' ? 'client' : 'admin')}
+            className="btn-secondary"
+            style={{ 
+              padding: '6px 14px', 
+              fontSize: '0.8rem', 
+              borderColor: portalMode === 'client' ? '#f59e0b' : 'rgba(52, 211, 153, 0.4)',
+              background: portalMode === 'client' ? 'rgba(245, 158, 11, 0.2)' : 'rgba(52, 211, 153, 0.15)',
+              color: '#ffffff',
+              fontWeight: 700
+            }}
+          >
+            {portalMode === 'admin' ? '🛕 Switch to Client Setup Portal' : '👑 Switch to Admin Dashboard'}
+          </button>
 
           {/* Logout Button */}
           {username && (

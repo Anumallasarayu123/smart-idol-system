@@ -1,15 +1,14 @@
 #include <WiFi.h>
-#include "Audio.h"
+#include "Audio.h" // ESP32-AudioI2S library by schreibfaul1 (v3.3.11)
 
 // ================== Wi-Fi Configuration ==================
 const char* ssid     = "Neonflake";
 const char* password = "FanSense#2023";
 
-// ================== Server Endpoint ==================
-// Using /audio/download for direct continuous MP3 streaming
-const char* AUDIO_URL = "http://192.168.31.217:3001/audio/download";
+// ================== Direct MP3 Server Endpoint ==================
+const char* AUDIO_URL = "http://192.168.31.217:3001/audio/latest.mp3";
 
-// ================== Hardware Pin Definitions ==================
+// ================== Hardware Pin Definitions ==================j
 #define PIR_PIN   13   // HC-SR501 PIR Motion Sensor OUT Pin
 #define LED_PIN   2    // ESP32 Built-in Blue LED Pin
 #define SD_PIN    4    // MAX98357A SD (Shutdown/Mute) Pin
@@ -20,30 +19,32 @@ const char* AUDIO_URL = "http://192.168.31.217:3001/audio/download";
 #define I2S_DOUT  27   // Serial Data Out ➔ GPIO 27
 
 Audio audio;
-bool isAudioPlaying = false;
 unsigned long lastPlayTime = 0;
+bool isPlaying = false;
 
-void triggerAudioPlayback() {
-  Serial.println("\n⚡ [MOTION DETECTED] Human wave sensed!");
-  Serial.printf("🔊 Connecting to: %s\n", AUDIO_URL);
-
-  digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker amp
-  digitalWrite(LED_PIN, HIGH); // Turn Blue LED ON
-
-  if (WiFi.status() != WL_CONNECTED) {
-    WiFi.begin(ssid, password);
-    while (WiFi.status() != WL_CONNECTED) { delay(200); }
-  }
-
-  isAudioPlaying = true;
-  bool res = audio.connecttohost(AUDIO_URL);
-  if (!res) {
-    Serial.println("❌ Failed to start audio stream!");
-    digitalWrite(LED_PIN, LOW);
-    isAudioPlaying = false;
-  }
+// Callback when MP3 audio finishes playing
+void audio_eof_mp3(const char *info) {
+  Serial.println("\n✅ MP3 Playback Finished!");
+  digitalWrite(SD_PIN, LOW);  // Mute MAX98357A speaker
+  digitalWrite(LED_PIN, LOW); // Turn LED OFF
+  isPlaying = false;
 }
 
+// Function to trigger audio playback
+void playAudio() {
+  Serial.println("\n⚡ [MOTION DETECTED] Human wave sensed!");
+  Serial.println("🔊 Streaming http://192.168.31.217:3001/audio/latest.mp3 ...");
+
+  digitalWrite(SD_PIN, HIGH);  // Unmute MAX98357A speaker
+  digitalWrite(LED_PIN, HIGH); // Turn LED ON
+
+  // Stream MP3 directly in ESP32 Core 3.x
+  isPlaying = audio.connecttohost(AUDIO_URL);
+}
+
+// =====================================================
+// Setup
+// =====================================================
 void setup() {
   Serial.begin(115200);
 
@@ -51,8 +52,7 @@ void setup() {
   pinMode(LED_PIN, OUTPUT);
   pinMode(SD_PIN, OUTPUT);
 
-  digitalWrite(SD_PIN, HIGH); // Unmute MAX98357A amp
-  digitalWrite(LED_PIN, LOW); // Blue LED Off
+  digitalWrite(SD_PIN, LOW); // Keep amp muted initially
 
   Serial.println("📶 Connecting to Wi-Fi...");
   WiFi.mode(WIFI_STA);
@@ -63,46 +63,31 @@ void setup() {
     Serial.print(".");
   }
 
-  WiFi.setSleep(false);
+  WiFi.setSleep(false); // Maximize Wi-Fi signal power
 
   Serial.println("\n✅ Wi-Fi Connected!");
-  Serial.print("📡 ESP32 Local IP: ");
+  Serial.print("📡 ESP32 IP: ");
   Serial.println(WiFi.localIP());
 
-  // Initialize ESP32-AudioI2S Pins
+  // Configure I2S Pins for ESP32 Core 3.x
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
-  audio.setVolume(21); // Maximum volume 21
-
-  // Enhanced Audio Log Callback for Error Tracing
-  Audio::audio_info_callback = [](Audio::msg_t m) {
-    Serial.printf("🔊 [AUDIO LOG] [%s] %s\n", m.s ? m.s : "LOG", m.msg ? m.msg : "");
-  };
+  audio.setVolume(18); // Volume range 0 to 21 (18 = ~85% smooth volume)
 
   Serial.println("⏳ Warming up PIR sensor for 10 seconds...");
   delay(10000);
 
-  Serial.println("✅ Smart Idol Ready! Wave your hand...");
+  Serial.println("✅ Smart Idol Ready for ESP32 Core 3.x! Wave your hand...");
 }
 
+// =====================================================
+// Main Loop
+// =====================================================
 void loop() {
-  // MUST BE CALLED CONTINUOUSLY TO PROCESS AUDIO STREAM CHUNKS
-  audio.loop();
+  audio.loop(); // Modern background audio decoder loop
 
-  // Monitor active playback state
-  if (audio.isRunning()) {
-    isAudioPlaying = true;
-  } else {
-    if (isAudioPlaying) {
-      Serial.println("✅ Audio finished playing!");
-      digitalWrite(LED_PIN, LOW); // Turn Blue LED OFF
-      isAudioPlaying = false;
-    }
-  }
-
-  // Motion Detection Trigger
-  if (!isAudioPlaying && digitalRead(PIR_PIN) == HIGH) {
-    if (millis() - lastPlayTime > 5000) { // 5s cooldown
-      triggerAudioPlayback();
+  if (!isPlaying && digitalRead(PIR_PIN) == HIGH) {
+    if (millis() - lastPlayTime > 15000) { // 15s cooldown between plays
+      playAudio();
       lastPlayTime = millis();
     }
   }

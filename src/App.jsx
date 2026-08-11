@@ -6,12 +6,28 @@ import PanchangamView from './components/PanchangamView';
 import LogsViewer from './components/LogsViewer';
 import WifiProvisioning from './components/WifiProvisioning';
 import LoginPage from './components/LoginPage';
+import ClientPortal from './components/ClientPortal';
 import { INITIAL_IDOL_STATE } from './mockData/idolState';
 import { LANGUAGES, CITIES, generateAudioScript, getDailyPanchangam } from './utils/panchangamEngine';
 import { ttsEngine } from './utils/ttsEngine';
 import { getApiBaseUrl } from './utils/apiConfig';
 
 export default function App() {
+  // Portal Mode State ('client' for idol setup wizard vs 'admin' for management console)
+  const [portalMode, setPortalMode] = useState(() => {
+    const path = window.location.pathname.toLowerCase();
+    if (path.includes('admin')) return 'admin';
+    if (path.includes('client') || path.includes('setup')) return 'client';
+    const saved = localStorage.getItem('smart_idol_portal_mode');
+    return saved || 'client'; // Default to Client Setup Wizard for buyers
+  });
+
+  // Save Portal Mode preference
+  const handleSwitchPortalMode = (mode) => {
+    setPortalMode(mode);
+    localStorage.setItem('smart_idol_portal_mode', mode);
+  };
+
   // Authentication State
   const [authUser, setAuthUser] = useState(() => {
     return localStorage.getItem('smart_idol_admin') || null;
@@ -240,6 +256,8 @@ export default function App() {
         onSelectTab={setActiveTab} 
         onLogout={handleLogout}
         username={authUser}
+        portalMode={portalMode}
+        onSwitchMode={handleSwitchPortalMode}
       />
 
       {/* Global Real-Time Motion Notification Banner */}
@@ -263,44 +281,58 @@ export default function App() {
         </div>
       )}
 
-      {/* Main Admin Workspace Area */}
+      {/* Main Workspace Area */}
       <main style={{ flex: 1, padding: '24px', maxWidth: '1400px', margin: '0 auto', width: '100%', boxSizing: 'border-box' }}>
-        {activeTab === 'dashboard' && (
-          <DashboardOverview 
-            idolState={idolState} 
-            onNavigateToTab={setActiveTab} 
-            onTriggerMotion={handleTriggerMotion}
-          />
-        )}
-
-        {activeTab === 'language' && (
-          <LanguageSelector 
-            idolState={idolState} 
+        {portalMode === 'client' ? (
+          <ClientPortal 
+            idolState={idolState}
             onConfirmLanguage={handleConfirmLanguage}
             onConfirmCity={handleConfirmCity}
-            isSyncing={isSyncingLanguage}
+            onUpdateWifiCredentials={(ssid, password) => {
+              setIdolState(prev => ({ ...prev, wifiSsid: ssid, wifiPassword: password, wifiStatus: 'CONNECTED' }));
+            }}
+            onSwitchToAdmin={() => handleSwitchPortalMode('admin')}
           />
-        )}
+        ) : (
+          <>
+            {activeTab === 'dashboard' && (
+              <DashboardOverview 
+                idolState={idolState} 
+                onNavigateToTab={setActiveTab} 
+                onTriggerMotion={handleTriggerMotion}
+              />
+            )}
 
-        {activeTab === 'panchangam' && (
-          <PanchangamView 
-            idolState={idolState} 
-            currentDate={currentDate}
-          />
-        )}
+            {activeTab === 'language' && (
+              <LanguageSelector 
+                idolState={idolState} 
+                onConfirmLanguage={handleConfirmLanguage}
+                onConfirmCity={handleConfirmCity}
+                isSyncing={isSyncingLanguage}
+              />
+            )}
 
-        {activeTab === 'wifi' && (
-          <WifiProvisioning 
-            idolState={idolState}
-            onUpdateWifi={(ssid) => setIdolState(prev => ({ ...prev, wifiSsid: ssid, wifiStatus: 'CONNECTED' }))}
-          />
-        )}
+            {activeTab === 'panchangam' && (
+              <PanchangamView 
+                idolState={idolState} 
+                currentDate={currentDate}
+              />
+            )}
 
-        {activeTab === 'logs' && (
-          <LogsViewer 
-            logs={logs} 
-            onClearLogs={() => setLogs([])}
-          />
+            {activeTab === 'wifi' && (
+              <WifiProvisioning 
+                idolState={idolState}
+                onUpdateWifi={(ssid) => setIdolState(prev => ({ ...prev, wifiSsid: ssid, wifiStatus: 'CONNECTED' }))}
+              />
+            )}
+
+            {activeTab === 'logs' && (
+              <LogsViewer 
+                logs={logs} 
+                onClearLogs={() => setLogs([])}
+              />
+            )}
+          </>
         )}
       </main>
 
