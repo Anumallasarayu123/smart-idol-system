@@ -6,9 +6,8 @@ const char* ssid     = "Neonflake";
 const char* password = "FanSense#2023";
 
 // ================== Server Endpoint ==================
-// Local server URL: "http://192.168.31.217:3001/audio/latest.mp3"
-// Cloud Render URL: "https://smart-idol-system-2.onrender.com/audio/latest.mp3"
-const char* AUDIO_URL = "http://192.168.31.217:3001/audio/latest.mp3";
+// Using /audio/download for direct continuous MP3 streaming
+const char* AUDIO_URL = "http://192.168.31.217:3001/audio/download";
 
 // ================== Hardware Pin Definitions ==================
 #define PIR_PIN   13   // HC-SR501 PIR Motion Sensor OUT Pin
@@ -64,7 +63,7 @@ void setup() {
     Serial.print(".");
   }
 
-  WiFi.setSleep(false); // Disable power save for uninterrupted streaming
+  WiFi.setSleep(false);
 
   Serial.println("\n✅ Wi-Fi Connected!");
   Serial.print("📡 ESP32 Local IP: ");
@@ -74,11 +73,9 @@ void setup() {
   audio.setPinout(I2S_BCLK, I2S_LRC, I2S_DOUT);
   audio.setVolume(21); // Maximum volume 21
 
-  // Register Audio Log Callback for Detailed Diagnostics
+  // Enhanced Audio Log Callback for Error Tracing
   Audio::audio_info_callback = [](Audio::msg_t m) {
-    if (m.msg || m.s) {
-      Serial.printf("🔊 [AUDIO LOG] %s %s\n", m.msg ? m.msg : "", m.s ? m.s : "");
-    }
+    Serial.printf("🔊 [AUDIO LOG] [%s] %s\n", m.s ? m.s : "LOG", m.msg ? m.msg : "");
   };
 
   Serial.println("⏳ Warming up PIR sensor for 10 seconds...");
@@ -88,10 +85,10 @@ void setup() {
 }
 
 void loop() {
-  // 1. MUST BE CALLED CONTINUOUSLY TO PROCESS AUDIO STREAM CHUNKS!
+  // MUST BE CALLED CONTINUOUSLY TO PROCESS AUDIO STREAM CHUNKS
   audio.loop();
 
-  // 2. Monitor active playback state
+  // Monitor active playback state
   if (audio.isRunning()) {
     isAudioPlaying = true;
   } else {
@@ -102,7 +99,7 @@ void loop() {
     }
   }
 
-  // 3. Motion Detection Trigger
+  // Motion Detection Trigger
   if (!isAudioPlaying && digitalRead(PIR_PIN) == HIGH) {
     if (millis() - lastPlayTime > 5000) { // 5s cooldown
       triggerAudioPlayback();
