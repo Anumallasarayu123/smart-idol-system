@@ -207,3 +207,56 @@ h1, h2, h3, h4, h5, h6 {
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
 }
+
+/* Mobile Responsiveness & Touch Optimization Rules */
+.mobile-only {
+  display: none !important;
+}
+
+@media (max-width: 768px) {
+  body {
+    padding-bottom: 75px; /* Space for fixed bottom mobile navigation */
+    font-size: 14px;
+  }
+
+  .desktop-only {
+    display: none !important;
+  }
+
+  .mobile-only {
+    display: flex !important;
+  }
+
+  main {
+    padding: 12px 10px !important;
+  }
+
+  .glass-card {
+    padding: 16px !important;
+    border-radius: 12px !important;
+  }
+
+  .btn-primary, .btn-secondary {
+    min-height: 46px; /* Touch target minimum height for mobile thumbs */
+    font-size: 0.95rem;
+    justify-content: center;
+    width: 100%;
+  }
+
+  input, select, textarea {
+    font-size: 16px !important; /* Prevents unwanted iOS auto-zoom on input focus */
+    min-height: 46px;
+    border-radius: 10px;
+  }
+
+  /* Grid layout collapses to single column on mobile */
+  .mobile-stack {
+    flex-direction: column !important;
+    align-items: stretch !important;
+  }
+
+  .mobile-grid-1 {
+    grid-template-columns: 1fr !important;
+  }
+}
+

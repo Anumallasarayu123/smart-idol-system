@@ -119,8 +119,8 @@ export default function Navbar({ activeTab, onSelectTab, idolState, username, on
 
       </div>
 
-      {/* Primary Tab Links */}
-      <nav style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 20px', display: 'flex', gap: '8px', overflowX: 'auto' }}>
+      {/* Primary Tab Links (Desktop) */}
+      <nav className="desktop-only" style={{ maxWidth: '1280px', margin: '0 auto', padding: '0 20px', display: 'flex', gap: '8px', overflowX: 'auto' }}>
         {tabs.map((tab) => {
           const Icon = tab.icon;
           const isActive = activeTab === tab.id;
@@ -151,6 +151,51 @@ export default function Navbar({ activeTab, onSelectTab, idolState, username, on
           );
         })}
       </nav>
+
+      {/* Mobile Fixed Bottom Navigation Bar (Smartphones) */}
+      {portalMode === 'admin' && (
+        <div className="mobile-only" style={{
+          position: 'fixed',
+          bottom: 0,
+          left: 0,
+          right: 0,
+          background: 'rgba(9, 13, 22, 0.95)',
+          backdropFilter: 'blur(16px)',
+          borderTop: '1px solid rgba(245, 158, 11, 0.25)',
+          padding: '8px 4px',
+          display: 'flex',
+          justifyContent: 'space-around',
+          alignItems: 'center',
+          zIndex: 100
+        }}>
+          {tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => onSelectTab(tab.id)}
+                style={{
+                  display: 'flex',
+                  flexDirection: 'column',
+                  alignItems: 'center',
+                  gap: '2px',
+                  background: 'transparent',
+                  border: 'none',
+                  color: isActive ? '#f59e0b' : '#9ca3af',
+                  fontSize: '0.68rem',
+                  fontWeight: isActive ? 700 : 500,
+                  cursor: 'pointer',
+                  padding: '4px'
+                }}
+              >
+                <Icon size={20} color={isActive ? '#f59e0b' : '#9ca3af'} />
+                <span>{tab.label.split(' ')[0]}</span>
+              </button>
+            );
+          })}
+        </div>
+      )}
     </header>
   );
 }

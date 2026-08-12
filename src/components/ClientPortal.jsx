@@ -613,7 +613,7 @@ export default function ClientPortal({
           </p>
 
           {/* Active Configuration Summary Card */}
-          <div style={{ 
+          <div className="mobile-grid-1" style={{ 
             background: 'rgba(9, 13, 22, 0.85)', 
             border: '1px solid rgba(245, 158, 11, 0.35)', 
             borderRadius: '16px', 
